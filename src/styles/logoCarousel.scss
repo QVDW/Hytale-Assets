@@ -1,0 +1,156 @@
+@use './variables' as color;
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.logo-carousel-section {
+  width: 100%;
+
+  .logo-carousel-container {
+    overflow: hidden;
+    position: relative;
+  }
+
+  .scroll-animate {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+
+    &.animate-in {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .logo-carousel-track {
+    display: flex;
+    width: fit-content;
+    animation: scroll 120s linear infinite;
+  }
+
+  .logo-carousel-inner {
+    display: flex;
+    align-items: center;
+    gap: 4rem;
+    padding: 0 2rem;
+  }
+
+  .logo-slide {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    height: 100px;
+    min-width: 150px;
+  }
+
+  .logo-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+
+    &:hover {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+
+    .logo-image {
+      filter: grayscale(100%);
+      opacity: 0.6;
+      transition: filter 0.3s ease, opacity 0.3s ease;
+
+      &:hover {
+        filter: grayscale(0%);
+        opacity: 1;
+      }
+    }
+  }
+
+  .logo-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      .logo-item {
+        transform: scale(1.1);
+      }
+
+      .logo-image {
+        filter: grayscale(0%);
+        opacity: 1;
+      }
+    }
+  }
+
+  @keyframes scroll {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 3rem 1rem;
+
+    .logo-carousel-inner {
+      gap: 3rem;
+      padding: 1.5rem 0;
+    }
+
+    .logo-slide {
+      height: 80px;
+      min-width: 120px;
+    }
+
+    .logo-item {
+      padding: 0.5rem;
+
+      .logo-image {
+        max-width: 120px;
+        max-height: 60px;
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 2rem 1rem;
+
+    .logo-carousel-inner {
+      gap: 2rem;
+      padding: 1rem 0;
+    }
+
+    .logo-slide {
+      height: 70px;
+      min-width: 100px;
+    }
+
+    .logo-item {
+      padding: 0.5rem;
+
+      .logo-image {
+        max-width: 100px;
+        max-height: 50px;
+      }
+    }
+  }
+}

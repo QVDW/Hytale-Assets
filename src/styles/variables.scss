@@ -1,0 +1,17 @@
+// Theme colors
+$primary: #39a1cf;
+$secondary: #86cbea;
+$accent: #4ebbec;
+$text: #0c1419;
+$background: #f8fafc;
+
+$dark: #1b1b1b;
+$light: #f3f3f3;
+
+:root {
+  --primary: #{$primary};
+  --secondary: #{$secondary};
+  --accent: #{$accent};
+  --text: #{$text};
+  --background: #{$background};
+}
