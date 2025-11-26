@@ -123,7 +123,7 @@ export default function LoginForm() {
                 return;
             }
 
-            localStorage.setItem("token", responseData.token);
+            localStorage.setItem("adminToken", responseData.token);
             router.push("/adm");
         } catch {
             setError("An error occurred. Please try again.");
@@ -136,7 +136,7 @@ export default function LoginForm() {
     };
 
     const handleTwoFactorSuccess = (token: string) => {
-        localStorage.setItem("token", token);
+        localStorage.setItem("adminToken", token);
         router.push("/adm");
     };
 

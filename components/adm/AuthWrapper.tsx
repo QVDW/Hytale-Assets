@@ -19,7 +19,7 @@ const AuthWrapper = ({ children }: { children: ReactNode }) => {
             // Ensure we're on the client side before accessing localStorage
             if (typeof window === 'undefined') return;
             
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("adminToken");
             
             if (!token) {
                 router.push("/adm/login");
@@ -36,13 +36,13 @@ const AuthWrapper = ({ children }: { children: ReactNode }) => {
 
                 if (response.status === 401) {
                     // Token is expired or invalid
-                    localStorage.removeItem("token");
+                    localStorage.removeItem("adminToken");
                     router.push("/adm/login");
                     return;
                 }
 
                 if (!response.ok) {
-                    localStorage.removeItem("token");
+                    localStorage.removeItem("adminToken");
                     router.push("/adm/login");
                     return;
                 }
@@ -51,7 +51,7 @@ const AuthWrapper = ({ children }: { children: ReactNode }) => {
                 setIsAuthenticated(true);
             } catch (error) {
                 console.error("Error validating token:", error);
-                localStorage.removeItem("token");
+                localStorage.removeItem("adminToken");
                 router.push("/adm/login");
             }
         };

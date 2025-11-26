@@ -9,7 +9,7 @@ export const authenticatedFetch = async (url, options = {}) => {
         throw new Error("authenticatedFetch can only be called on the client side");
     }
     
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("adminToken");
     
     if (!token) {
         // No token available, redirect to login
@@ -31,7 +31,7 @@ export const authenticatedFetch = async (url, options = {}) => {
         
         // Handle token expiration
         if (response.status === 401) {
-            localStorage.removeItem("token");
+            localStorage.removeItem("adminToken");
             window.location.href = "/adm/login";
             throw new Error("Token expired");
         }
@@ -40,7 +40,7 @@ export const authenticatedFetch = async (url, options = {}) => {
     } catch (error) {
         // If it's a network error and we get a 401-like response
         if (error.message.includes("401") || error.message.includes("Unauthorized")) {
-            localStorage.removeItem("token");
+            localStorage.removeItem("adminToken");
             window.location.href = "/adm/login";
         }
         throw error;

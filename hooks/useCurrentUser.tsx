@@ -22,7 +22,7 @@ export default function useCurrentUser() {
     const logout = useCallback(() => {
         // Ensure we're on the client side before accessing localStorage
         if (typeof window !== 'undefined') {
-            localStorage.removeItem("token");
+            localStorage.removeItem("adminToken");
         }
         setUser(null);
         setError("Token expired");
@@ -41,7 +41,7 @@ export default function useCurrentUser() {
                 return;
             }
 
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("adminToken");
             
             if (!token) {
                 setError("No authentication token found");

@@ -121,7 +121,7 @@ export default function AddUser() {
                     }
                 } else {
                     // Fallback to actual user rank
-                    const token = localStorage.getItem("token");
+                    const token = localStorage.getItem("adminToken");
                     const res = await fetch(getApiUrl("/api/auth/me"), {
                         headers: {
                             "Authorization": `Bearer ${token}`
@@ -180,7 +180,7 @@ export default function AddUser() {
         }
 
         try {
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("adminToken");
             const headers: Record<string, string> = {
                 "Content-type": "application/json"
             };

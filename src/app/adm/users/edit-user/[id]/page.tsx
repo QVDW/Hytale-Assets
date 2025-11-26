@@ -36,7 +36,7 @@ export default function EditUser({ params }: PageParams) {
 
         const fetchUser = async () => {
             try {
-                const token = localStorage.getItem("token");
+                const token = localStorage.getItem("adminToken");
                 const res = await fetch(getApiUrl(`/api/users/${userId}`), {
                     headers: {
                         "Authorization": `Bearer ${token}`

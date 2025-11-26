@@ -22,7 +22,7 @@ export const ViewAsProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         const checkDeveloperStatus = async () => {
             try {
-                const token = localStorage.getItem("token");
+                const token = localStorage.getItem("adminToken");
                 if (!token) return;
 
                 const res = await fetch(getApiUrl("/api/auth/me"), {

@@ -69,7 +69,7 @@ export default function EditUserForm({ id, name, email, rank }: EditUserFormProp
                     setAvailableRanks(available);
                 } else {
                     // Fallback to actual user rank
-                    const token = localStorage.getItem("token");
+                    const token = localStorage.getItem("adminToken");
                     const res = await fetch(getApiUrl("/api/auth/me"), {
                         headers: {
                             "Authorization": `Bearer ${token}`
@@ -125,7 +125,7 @@ export default function EditUserForm({ id, name, email, rank }: EditUserFormProp
         };
 
         try {
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("adminToken");
             const res = await fetch(getApiUrl(`/api/users/${id}`), {
                 method: "PUT",
                 headers: {

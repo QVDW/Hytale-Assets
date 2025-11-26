@@ -26,7 +26,7 @@ export default function RemoveBtn({ id }: RemoveBtnProps) {
                     setHasDeletePermission(canDelete);
                 } else {
                     // Fallback to actual user permissions
-                    const token = localStorage.getItem("token");
+                    const token = localStorage.getItem("adminToken");
                     const res = await fetch(getApiUrl("/api/auth/me"), {
                         headers: {
                             "Authorization": `Bearer ${token}`
@@ -60,7 +60,7 @@ export default function RemoveBtn({ id }: RemoveBtnProps) {
         if (confirmed) {
             setIsLoading(true);
             try {
-                const token = localStorage.getItem("token");
+                const token = localStorage.getItem("adminToken");
                 const res = await fetch(getApiUrl(`/api/users?id=${id}`), {
                     method: "DELETE",
                     headers: {

@@ -50,7 +50,7 @@ const getRankColor = (rank: string) => {
 const getUser = async (effectiveRank: string | null) => {
     console.log("Fetching user data with effective rank:", effectiveRank);
     try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("adminToken");
         const res = await fetch(getApiUrl('/api/users'), {
             cache: 'no-store',
             headers: {

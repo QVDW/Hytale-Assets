@@ -23,7 +23,7 @@ const useAuth = (skipCheck = false) => {
             // Ensure we're on the client side before accessing localStorage
             if (typeof window === 'undefined') return;
 
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("adminToken");
             
             if (!token) {
                 console.log("No token found, redirecting to login");
@@ -44,7 +44,7 @@ const useAuth = (skipCheck = false) => {
 
                 if (response.status === 401) {
                     console.log("Session terminated or token expired, clearing and redirecting to login");
-                    localStorage.removeItem("token");
+                    localStorage.removeItem("adminToken");
                     if (typeof window !== 'undefined') {
                         window.location.href = "/adm/login";
                     }
@@ -53,7 +53,7 @@ const useAuth = (skipCheck = false) => {
 
                 if (!response.ok) {
                     console.log("Failed to validate token, redirecting to login");
-                    localStorage.removeItem("token");
+                    localStorage.removeItem("adminToken");
                     if (typeof window !== 'undefined') {
                         window.location.href = "/adm/login";
                     }
@@ -63,7 +63,7 @@ const useAuth = (skipCheck = false) => {
                 // Authentication valid
             } catch (error) {
                 console.error("Error validating token:", error);
-                localStorage.removeItem("token");
+                localStorage.removeItem("adminToken");
                 router.push("/adm/login");
             }
         };

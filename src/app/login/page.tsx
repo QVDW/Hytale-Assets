@@ -59,7 +59,7 @@ export default function LoginPage() {
 
             // Store token in localStorage
             if (typeof window !== "undefined") {
-                localStorage.setItem("token", data.token);
+                localStorage.setItem("userToken", data.token);
             }
 
             // Redirect to home page

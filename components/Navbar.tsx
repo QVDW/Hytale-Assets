@@ -105,7 +105,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
     const checkAuth = async () => {
       if (typeof window === "undefined") return;
 
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("userToken");
       
       if (!token) {
         if (isMounted) {
@@ -133,7 +133,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
           }
         } else {
           // Token is invalid, remove it
-          localStorage.removeItem("token");
+          localStorage.removeItem("userToken");
           if (isMounted) {
             setIsLoggedIn(false);
             setUserData(null);
@@ -163,7 +163,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("token");
+      localStorage.removeItem("userToken");
       setIsLoggedIn(false);
       setUserData(null);
       setIsUserDropdownOpen(false);

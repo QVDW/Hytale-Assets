@@ -16,7 +16,7 @@ export interface UserData {
  */
 export function getUserToken(): string | null {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem("token");
+    return localStorage.getItem("userToken");
 }
 
 /**
@@ -56,7 +56,7 @@ export async function getCurrentUser(): Promise<UserData | null> {
             if (response.status === 401) {
                 // Token is invalid, remove it
                 if (typeof window !== "undefined") {
-                    localStorage.removeItem("token");
+                    localStorage.removeItem("userToken");
                 }
             }
             return null;
@@ -74,7 +74,7 @@ export async function getCurrentUser(): Promise<UserData | null> {
  */
 export function logout(): void {
     if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
+        localStorage.removeItem("userToken");
     }
 }
 
