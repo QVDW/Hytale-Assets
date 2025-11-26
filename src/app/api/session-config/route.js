@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../libs/mongodb";
 import { getCurrentUser } from "../../../utils/authMiddleware";
 import { hasPermission, PERMISSIONS } from "../../../utils/permissions";
 
@@ -17,8 +16,6 @@ const DEFAULT_SESSION_CONFIG = {
 
 export async function GET(request) {
     try {
-        await connectMongoDB();
-        
         const currentUser = await getCurrentUser(request);
         
         if (!currentUser) {
@@ -52,8 +49,6 @@ export async function GET(request) {
 
 export async function PUT(request) {
     try {
-        await connectMongoDB();
-        
         const currentUser = await getCurrentUser(request);
         
         if (!currentUser) {

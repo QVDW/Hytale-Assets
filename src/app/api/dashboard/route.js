@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../libs/mongodb";
-import User from "../../../../models/user";
-import Item from "../../../../models/item";
-import FAQ from "../../../../models/faq";
+import prisma from "../../../../libs/database";
 import { requireAuth } from "../../../utils/authMiddleware";
 import { getVisibleRanks } from "../../../utils/permissions";
 
@@ -13,8 +10,6 @@ export async function GET(request) {
         if (!currentUser) {
             return NextResponse.json({ error: "Authentication required" }, { status: 401 });
         }
-        
-        await connectMongoDB();
         
         // Get effective rank (simulated or actual) - same logic as users API
         function getEffectiveRank(request, actualUser) {
@@ -34,31 +29,36 @@ export async function GET(request) {
         const visibleRanks = getVisibleRanks(effectiveRank);
         
         // Filter user count based on visible ranks (consistent with users panel)
-        const userCount = await User.countDocuments({ rank: { $in: visibleRanks } });
+        const userCount = await prisma.user.count({
+            where: { rank: { in: visibleRanks } }
+        });
         
-        const totalItems = await Item.countDocuments();
-        const activeItems = await Item.countDocuments({ isActive: true });
+        const totalItems = await prisma.item.count();
+        const activeItems = await prisma.item.count({
+            where: { isActive: true }
+        });
         
-        const faqCount = await FAQ.countDocuments();
+        const faqCount = await prisma.faq.count();
         
         // Also filter recent users by visible ranks  
-        const recentUsers = await User.find({ rank: { $in: visibleRanks } })
-            .sort({ created_at: -1 })
-            .limit(2)
-            .select('name created_at')
-            .lean();
+        const recentUsers = await prisma.user.findMany({
+            where: { rank: { in: visibleRanks } },
+            orderBy: { createdAt: 'desc' },
+            take: 2,
+            select: { name: true, createdAt: true }
+        });
             
-        const recentItems = await Item.find({})
-            .sort({ created_at: -1 })
-            .limit(2)
-            .select('name created_at')
-            .lean();
+        const recentItems = await prisma.item.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 2,
+            select: { name: true, createdAt: true }
+        });
             
-        const recentFaqs = await FAQ.find({})
-            .sort({ createdAt: -1 })
-            .limit(1)
-            .select('question createdAt')
-            .lean();
+        const recentFaqs = await prisma.faq.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { question: true, createdAt: true }
+        });
             
         // Fix: Capture a single timestamp for consistency
         const requestTime = new Date();
@@ -77,15 +77,15 @@ export async function GET(request) {
                 type: 'user',
                 action: 'New user registered',
                 name: user.name,
-                time: formatTimeAgo(user.created_at),
-                timestamp: user.created_at // Include raw timestamp for client-side processing
+                time: formatTimeAgo(user.createdAt),
+                timestamp: user.createdAt // Include raw timestamp for client-side processing
             })),
             ...recentItems.map(item => ({
                 type: 'item',
                 action: 'New item added',
                 name: item.name,
-                time: formatTimeAgo(item.created_at),
-                timestamp: item.created_at // Include raw timestamp for client-side processing
+                time: formatTimeAgo(item.createdAt),
+                timestamp: item.createdAt // Include raw timestamp for client-side processing
             })),
             ...recentFaqs.map(faq => ({
                 type: 'question',

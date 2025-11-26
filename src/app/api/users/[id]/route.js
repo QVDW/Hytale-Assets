@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../../libs/mongodb";
-import User from "../../../../../models/user";
+import prisma from "../../../../../libs/database";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import { getAvailableRanks, canManageUser, hasPermission, PERMISSIONS } from "../../../../utils/permissions";
+import { validatePasswordStrength } from "../../../../utils/passwordStrength";
 
 // Helper function to get current user from token
 async function getCurrentUser(request) {
@@ -22,8 +23,10 @@ async function getCurrentUser(request) {
             return null;
         }
         
-        await connectMongoDB();
-        const user = await User.findById(decoded.userId).select("-password");
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, name: true, mail: true, rank: true, twoFactorEnabled: true, createdAt: true, updatedAt: true }
+        });
         return user;
     } catch (error) {
         console.error("Error getting current user:", error);
@@ -41,7 +44,6 @@ export async function PUT(request, { params }) {
         }
 
         const { name, email: mail, password, rank } = await request.json();
-        await connectMongoDB();
 
         const currentUser = await getCurrentUser(request);
         
@@ -55,7 +57,9 @@ export async function PUT(request, { params }) {
         }
         
         // Get the user to be updated
-        const userToUpdate = await User.findById(id);
+        const userToUpdate = await prisma.user.findUnique({
+            where: { id }
+        });
         
         if (!userToUpdate) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -82,19 +86,24 @@ export async function PUT(request, { params }) {
 
         // Handle password update if provided
         if (password) {
-            // Let the User model handle password validation and hashing
-            updateData.password = password;
+            // Validate password strength
+            const validation = validatePasswordStrength(password);
+            if (!validation.isValid) {
+                return NextResponse.json({ 
+                    error: `Password does not meet requirements: ${validation.errors.join(', ')}` 
+                }, { status: 400 });
+            }
+            
+            // Hash password
+            const salt = await bcrypt.genSalt(10);
+            updateData.password = await bcrypt.hash(password, salt);
         }
 
-        const updatedUser = await User.findByIdAndUpdate(
-            id,
-            updateData,
-            { new: true, runValidators: true }
-        ).select("-password");
-        
-        if (!updatedUser) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
-        }
+        const updatedUser = await prisma.user.update({
+            where: { id },
+            data: updateData,
+            select: { id: true, name: true, mail: true, rank: true, twoFactorEnabled: true, createdAt: true, updatedAt: true }
+        });
         
         return NextResponse.json({ 
             message: "User updated successfully", 
@@ -121,8 +130,6 @@ export async function GET(request, { params }) {
             return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
         }
 
-        await connectMongoDB();
-        
         const currentUser = await getCurrentUser(request);
         
         if (!currentUser) {
@@ -134,7 +141,10 @@ export async function GET(request, { params }) {
             return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
         
-        const user = await User.findById(id).select("-password");
+        const user = await prisma.user.findUnique({
+            where: { id },
+            select: { id: true, name: true, mail: true, rank: true, twoFactorEnabled: true, createdAt: true, updatedAt: true }
+        });
         
         if (!user) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../libs/mongodb";
-import User from "../../../../models/user";
+import prisma from "../../../../libs/database";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import { getVisibleRanks, getAvailableRanks, canManageUser, hasPermission, PERMISSIONS } from "../../../utils/permissions";
 import { getCurrentUser as getAuthenticatedUser } from "../../../utils/authMiddleware";
+import { validatePasswordStrength } from "../../../utils/passwordStrength";
 
 // Helper function to get current user from token (DEPRECATED - using auth middleware now)
 async function getCurrentUser(request) {
@@ -23,8 +24,10 @@ async function getCurrentUser(request) {
             return null;
         }
         
-        await connectMongoDB();
-        const user = await User.findById(decoded.userId).select("-password");
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, name: true, mail: true, rank: true, twoFactorEnabled: true, createdAt: true, updatedAt: true }
+        });
         return user;
     } catch (error) {
         console.error("Error getting current user:", error);
@@ -48,10 +51,8 @@ export async function POST(request) {
     try {
         const { name, mail, password, rank: requestedRank = "Werknemer" } = await request.json();
         
-        await connectMongoDB();
-        
         // Check if this is the first user (no auth required)
-        const existingUsers = await User.countDocuments();
+        const existingUsers = await prisma.user.count();
         
         let finalRank = requestedRank;
         
@@ -83,7 +84,26 @@ export async function POST(request) {
             return NextResponse.json({ error: "Name, email and password are required" }, { status: 400 });
         }
 
-        await User.create({ name, mail, password, rank: finalRank });
+        // Validate password strength
+        const validation = validatePasswordStrength(password);
+        if (!validation.isValid) {
+            return NextResponse.json({ 
+                error: `Password does not meet requirements: ${validation.errors.join(', ')}` 
+            }, { status: 400 });
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        await prisma.user.create({ 
+            data: { 
+                name, 
+                mail, 
+                password: hashedPassword, 
+                rank: finalRank 
+            } 
+        });
         return NextResponse.json({ message: "User created" });
     } catch (error) {
         console.error("Error creating user:", error);
@@ -99,8 +119,6 @@ export async function POST(request) {
 
 export async function GET(request) {
     try {
-        await connectMongoDB();
-        
         // Use auth middleware to validate active session
         const currentUser = await getAuthenticatedUser(request);
         
@@ -120,7 +138,10 @@ export async function GET(request) {
         const visibleRanks = getVisibleRanks(effectiveRank);
         
         // Filter users based on visible ranks
-        const users = await User.find({ rank: { $in: visibleRanks } }).select("-password");
+        const users = await prisma.user.findMany({
+            where: { rank: { in: visibleRanks } },
+            select: { id: true, name: true, mail: true, rank: true, twoFactorEnabled: true, createdAt: true, updatedAt: true }
+        });
         
         return NextResponse.json(users);
     } catch (error) {
@@ -137,8 +158,6 @@ export async function DELETE(request) {
             return NextResponse.json({ error: "User ID required" }, { status: 400 });
         }
         
-        await connectMongoDB();
-        
         const currentUser = await getCurrentUser(request);
         
         if (!currentUser) {
@@ -151,7 +170,9 @@ export async function DELETE(request) {
         }
         
         // Get the user to be deleted
-        const userToDelete = await User.findById(id);
+        const userToDelete = await prisma.user.findUnique({
+            where: { id }
+        });
         
         if (!userToDelete) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -163,11 +184,13 @@ export async function DELETE(request) {
         }
         
         // Prevent self-deletion
-        if (currentUser._id.toString() === id) {
+        if (currentUser.id === id) {
             return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
         }
         
-        await User.findByIdAndDelete(id);
+        await prisma.user.delete({
+            where: { id }
+        });
         return NextResponse.json({ message: "User deleted" });
     } catch (error) {
         console.error("Error deleting user:", error);

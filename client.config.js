@@ -12,12 +12,12 @@ const clientConfig = {
   // SITE METADATA
   // ===================================
   site: {
-    name: "Template",
-    description: "Template beschrijving",
-    keywords: ["keyword1", "keyword2", "keyword3"],
-    author: "Template Author",
-    language: "nl", // or "nl" for Dutch
-    currency: "EUR", // or "EUR"
+    name: "Hytale Assets",
+    description: "Hytale Assets is a platform for Hytale players to share their assets with the community.",
+    keywords: ["Hytale", "Assets", "Hytale Assets", "Hytale Assets Platform"],
+    author: "Hytale Assets Team",
+    language: "en", // or "nl" for Dutch
+    currency: "USD", // or "EUR"
   },
 
   // ===================================
@@ -27,9 +27,9 @@ const clientConfig = {
     // Logo settings
     logo: {
       // Path to your logo file (place in /public folder)
-      src: "/placeholder.png", // Change this to your logo
-      alt: "Placeholder Logo",
-      width: 150,
+      src: "/hytale-assets-logo.png", // Change this to your logo
+      alt: "Hytale Assets Logo",
+      width: 50,
       height: 50,
     },
     // Favicon settings (place favicon files in /public folder)
@@ -47,9 +47,9 @@ const clientConfig = {
   // ===================================
   theme: {
     colors: {
-      primary: "#4692c1",    // Main brand color
-      secondary: "#94c4e3",  // Secondary brand color
-      accent: "#5cacde",     // Accent color for highlights
+      primary: "#112d53",    // Main brand color
+      secondary: "#bc773d",  // Secondary brand color
+      accent: "#2b5792",     // Accent color for highlights
       text: "#0c1419",       // Main text color
       background: "#f8fafc", // Background color
     },
@@ -178,7 +178,7 @@ For questions about this privacy policy, please contact us at: info@yourcompany.
   // ===================================
   admin: {
     // Language for admin interface
-    language: "nl", // "en" for English, "nl" for Dutch
+    language: "en", // "en" for English, "nl" for Dutch
     // Admin dashboard title
     dashboardTitle: "Admin Dashboard",
     // Items per page in admin lists

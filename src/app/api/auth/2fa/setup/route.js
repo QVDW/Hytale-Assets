@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import crypto from "crypto";
-import connectMongoDB from "../../../../../../libs/mongodb";
-import User from "../../../../../../models/user";
+import prisma from "../../../../../../libs/database";
 import { getCurrentUser } from "../../../../../utils/authMiddleware";
 
 // Generate TOTP secret and QR code
@@ -13,8 +12,6 @@ export async function POST(request) {
         if (!user) {
             return NextResponse.json({ error: "Authentication required" }, { status: 401 });
         }
-
-        await connectMongoDB();
 
         // Generate a new TOTP secret
         const secret = speakeasy.generateSecret({
@@ -26,10 +23,13 @@ export async function POST(request) {
         const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
 
         // Store the temporary secret (not yet enabled)
-        await User.findByIdAndUpdate(user._id, {
-            twoFactorSecret: secret.base32,
-            twoFactorEnabled: false,
-            twoFactorSetupCompleted: false
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                twoFactorSecret: secret.base32,
+                twoFactorEnabled: false,
+                twoFactorSetupCompleted: false
+            }
         });
 
         return NextResponse.json({
@@ -61,8 +61,9 @@ export async function PUT(request) {
             return NextResponse.json({ error: "TOTP token required" }, { status: 400 });
         }
 
-        await connectMongoDB();
-        const dbUser = await User.findById(user._id);
+        const dbUser = await prisma.user.findUnique({
+            where: { id: user.id }
+        });
         
         if (!dbUser.twoFactorSecret) {
             return NextResponse.json({ error: "2FA setup not initiated" }, { status: 400 });
@@ -92,10 +93,13 @@ export async function PUT(request) {
         }
 
         // Enable 2FA
-        await User.findByIdAndUpdate(user._id, {
-            twoFactorEnabled: true,
-            twoFactorSetupCompleted: true,
-            twoFactorBackupCodes: backupCodes
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                twoFactorEnabled: true,
+                twoFactorSetupCompleted: true,
+                twoFactorBackupCodes: backupCodes
+            }
         });
 
         return NextResponse.json({
@@ -125,8 +129,9 @@ export async function DELETE(request) {
             return NextResponse.json({ error: "Password required to disable 2FA" }, { status: 400 });
         }
 
-        await connectMongoDB();
-        const dbUser = await User.findById(user._id);
+        const dbUser = await prisma.user.findUnique({
+            where: { id: user.id }
+        });
         
         // Verify password
         const bcrypt = await import("bcrypt");
@@ -136,11 +141,14 @@ export async function DELETE(request) {
         }
 
         // Disable 2FA
-        await User.findByIdAndUpdate(user._id, {
-            twoFactorSecret: null,
-            twoFactorEnabled: false,
-            twoFactorSetupCompleted: false,
-            twoFactorBackupCodes: []
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                twoFactorSecret: null,
+                twoFactorEnabled: false,
+                twoFactorSetupCompleted: false,
+                twoFactorBackupCodes: []
+            }
         });
 
         return NextResponse.json({
@@ -154,4 +162,4 @@ export async function DELETE(request) {
             { status: 500 }
         );
     }
-} 
+}

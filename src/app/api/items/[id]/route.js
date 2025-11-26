@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../../libs/mongodb";
-import Item from "../../../../../models/item";
+import prisma from "../../../../../libs/database";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -25,8 +24,13 @@ export async function PUT(request, context) {
     const isFeatured = formData.get("isFeatured") === "true";
     const isActive = formData.get("isActive") === "true";
 
-    await connectMongoDB();
-    const currentItem = await Item.findById(id);
+    const currentItem = await prisma.item.findUnique({
+        where: { id }
+    });
+    
+    if (!currentItem) {
+        return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    }
     
     let imagePath = currentItem.image;
     
@@ -45,16 +49,19 @@ export async function PUT(request, context) {
         imagePath = `/uploads/${imageName}`;
     }
 
-    const updatedItem = await Item.findByIdAndUpdate(id, { 
-        name, 
-        category, 
-        tags, 
-        image: imagePath, 
-        link,
-        releaseDate,
-        isFeatured, 
-        isActive 
-    }, { new: true });
+    const updatedItem = await prisma.item.update({
+        where: { id },
+        data: { 
+            name, 
+            category, 
+            tags, 
+            image: imagePath, 
+            link,
+            releaseDate,
+            isFeatured, 
+            isActive 
+        }
+    });
     
     console.log("Updated item with releaseDate:", updatedItem.releaseDate);
     console.log("Updated item with link:", updatedItem.link);
@@ -66,16 +73,54 @@ export async function GET(request, context) {
     const { params } = context;
     const { id } = await params;
 
-    await connectMongoDB();
-    const item = await Item.findById(id);
+    const item = await prisma.item.findUnique({
+        where: { id }
+    });
+    
+    if (!item) {
+        return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    }
+    
     return NextResponse.json({ item });
 }
 
 export async function DELETE(request, context) {
-    const { params } = context;
-    const { id } = await params;
-    
-    await connectMongoDB();
-    await Item.findByIdAndDelete(id);
-    return NextResponse.json({message: "Item deleted"});
+    try {
+        const { params } = context;
+        const { id } = await params;
+        
+        const item = await prisma.item.findUnique({
+            where: { id }
+        });
+        
+        if (!item) {
+            return NextResponse.json({ error: "Item not found" }, { status: 404 });
+        }
+        
+        // Store image path before deletion
+        const imagePath = item.image ? path.join(process.cwd(), "public", item.image) : null;
+        
+        // Delete database record first to maintain atomicity
+        await prisma.item.delete({
+            where: { id }
+        });
+        
+        // Delete image file after successful database deletion
+        if (imagePath) {
+            try {
+                await fs.unlink(imagePath);
+            } catch (error) {
+                console.error("Error deleting image file:", error);
+                // Note: Database record is already deleted, so we log but don't fail
+            }
+        }
+        
+        return NextResponse.json({message: "Item deleted"});
+    } catch (error) {
+        if (error.code === 'P2025') {
+            return NextResponse.json({ error: "Item not found" }, { status: 404 });
+        }
+        console.error("Error deleting item:", error);
+        return NextResponse.json({ error: "Failed to delete item" }, { status: 500 });
+    }
 }

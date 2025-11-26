@@ -1,39 +1,38 @@
-import connectMongoDB from "../../libs/mongodb";
-import ErrorLog from "../../models/errorLog";
+import prisma from "../../libs/database";
 
 /**
  * Log server error without request context (for global handlers)
  */
 async function logGlobalServerError(error, source = 'global-server', additionalData = {}) {
     try {
-        await connectMongoDB();
-
         const message = error.message || 'An unknown server error occurred';
         const stack = error.stack || error.toString();
 
-        const errorLog = await ErrorLog.create({
-            message,
-            stack,
-            level: 'error',
-            source,
-            userAgent: 'server',
-            ipAddress: 'server',
-            url: 'server',
-            method: 'SERVER',
-            resolved: false,
-            tags: ['server-error', 'global-handler'],
-            metadata: {
-                ...additionalData,
-                timestamp: new Date().toISOString(),
-                errorName: error.name,
-                errorCode: error.code,
-                nodeVersion: process.version,
-                platform: process.platform
+        const errorLog = await prisma.errorLog.create({
+            data: {
+                message,
+                stack,
+                level: 'error',
+                source,
+                userAgent: 'server',
+                ipAddress: 'server',
+                url: 'server',
+                method: 'SERVER',
+                resolved: false,
+                tags: ['server-error', 'global-handler'],
+                metadata: {
+                    ...additionalData,
+                    timestamp: new Date().toISOString(),
+                    errorName: error.name,
+                    errorCode: error.code,
+                    nodeVersion: process.version,
+                    platform: process.platform
+                }
             }
         });
 
-        console.log(`Global server error logged to database with ID: ${errorLog._id}`);
-        return errorLog._id;
+        console.log(`Global server error logged to database with ID: ${errorLog.id}`);
+        return errorLog.id;
     } catch (logError) {
         console.error('Failed to log global server error to database:', logError);
         return null;

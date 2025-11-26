@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../libs/mongodb";
-import ErrorLog from "../../../../models/errorLog";
+import prisma from "../../../../libs/database";
 import { requirePermission } from "../../../utils/authMiddleware";
 import { PERMISSIONS } from "../../../utils/permissions";
 import { logServerError } from "../../../utils/serverErrorLogger";
@@ -13,8 +12,6 @@ export async function GET(request) {
             return user; // Return error response
         }
 
-        await connectMongoDB();
-
         const url = new URL(request.url);
         const page = parseInt(url.searchParams.get('page') || '1');
         const limit = parseInt(url.searchParams.get('limit') || '50');
@@ -24,15 +21,15 @@ export async function GET(request) {
         const search = url.searchParams.get('search');
 
         // Build query
-        const query = {};
-        if (level) query.level = level;
-        if (resolved !== null && resolved !== undefined) query.resolved = resolved === 'true';
-        if (source) query.source = { $regex: source, $options: 'i' };
+        const where = {};
+        if (level) where.level = level;
+        if (resolved !== null && resolved !== undefined) where.resolved = resolved === 'true';
+        if (source) where.source = { contains: source, mode: 'insensitive' };
         if (search) {
-            query.$or = [
-                { message: { $regex: search, $options: 'i' } },
-                { source: { $regex: search, $options: 'i' } },
-                { stack: { $regex: search, $options: 'i' } }
+            where.OR = [
+                { message: { contains: search, mode: 'insensitive' } },
+                { source: { contains: search, mode: 'insensitive' } },
+                { stack: { contains: search, mode: 'insensitive' } }
             ];
         }
 
@@ -40,36 +37,41 @@ export async function GET(request) {
         const skip = (page - 1) * limit;
 
         // Get error logs with pagination
-        const errorLogs = await ErrorLog.find(query)
-            .populate('userId', 'name mail rank')
-            .populate('resolvedBy', 'name mail')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
+        const errorLogs = await prisma.errorLog.findMany({
+            where,
+            include: {
+                user: {
+                    select: { id: true, name: true, mail: true, rank: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit
+        });
 
         // Get total count for pagination
-        const totalCount = await ErrorLog.countDocuments(query);
+        const totalCount = await prisma.errorLog.count({ where });
 
         // Get statistics
-        const stats = await ErrorLog.aggregate([
-            { $match: query },
-            {
-                $group: {
-                    _id: '$level',
-                    count: { $sum: 1 }
-                }
+        const statsResult = await prisma.errorLog.groupBy({
+            by: ['level'],
+            where,
+            _count: {
+                level: true
             }
-        ]);
+        });
+
+        const stats = statsResult.reduce((acc, stat) => {
+            acc[stat.level] = stat._count.level;
+            return acc;
+        }, {});
 
         return NextResponse.json({
             errorLogs,
             totalCount,
             currentPage: page,
             totalPages: Math.ceil(totalCount / limit),
-            stats: stats.reduce((acc, stat) => {
-                acc[stat._id] = stat.count;
-                return acc;
-            }, {})
+            stats
         });
     } catch (error) {
         console.error("Error fetching error logs:", error);
@@ -81,8 +83,6 @@ export async function GET(request) {
 // POST - Create new error log
 export async function POST(request) {
     try {
-        await connectMongoDB();
-
         const body = await request.json();
         const { message, stack, level = 'error', source, userId, tags, metadata } = body;
 
@@ -91,42 +91,32 @@ export async function POST(request) {
         const forwarded = request.headers.get('x-forwarded-for');
         const ipAddress = forwarded ? forwarded.split(',')[0] : request.headers.get('x-real-ip') || 'unknown';
 
-        // Validate userId - only set if it's a valid ObjectId
+        // Validate userId
         let validUserId = null;
-        if (userId) {
-            try {
-                // Check if it's a valid ObjectId format (24 hex characters)
-                if (typeof userId === 'string' && userId.match(/^[0-9a-fA-F]{24}$/)) {
-                    validUserId = userId;
-                }
-                // If it's already an ObjectId, use it
-                else if (userId.constructor.name === 'ObjectId') {
-                    validUserId = userId;
-                }
-                // Otherwise, leave it as null (for test data like "test-user-id")
-            } catch {
-                // Invalid ObjectId, leave as null
-            }
+        if (userId && typeof userId === 'string' && userId.length > 0) {
+            validUserId = userId;
         }
 
         // Create error log
-        const errorLog = await ErrorLog.create({
-            message,
-            stack,
-            level,
-            source,
-            userId: validUserId,
-            userAgent,
-            ipAddress,
-            url: request.url,
-            method: 'POST',
-            tags,
-            metadata
+        const errorLog = await prisma.errorLog.create({
+            data: {
+                message,
+                stack,
+                level,
+                source,
+                userId: validUserId,
+                userAgent,
+                ipAddress,
+                url: request.url,
+                method: 'POST',
+                tags: tags || [],
+                metadata: metadata || {}
+            }
         });
 
         return NextResponse.json({ 
             success: true, 
-            errorLogId: errorLog._id,
+            errorLogId: errorLog.id,
             message: "Error logged successfully"
         }, { status: 201 });
     } catch (error) {
@@ -144,8 +134,6 @@ export async function DELETE(request) {
             return user; // Return error response
         }
 
-        await connectMongoDB();
-
         const url = new URL(request.url);
         const level = url.searchParams.get('level');
         const resolved = url.searchParams.get('resolved');
@@ -153,29 +141,29 @@ export async function DELETE(request) {
         const search = url.searchParams.get('search');
 
         // Build query - same as GET to allow filtered deletion
-        const query = {};
-        if (level) query.level = level;
-        if (resolved !== null && resolved !== undefined) query.resolved = resolved === 'true';
-        if (source) query.source = { $regex: source, $options: 'i' };
+        const where = {};
+        if (level) where.level = level;
+        if (resolved !== null && resolved !== undefined) where.resolved = resolved === 'true';
+        if (source) where.source = { contains: source, mode: 'insensitive' };
         if (search) {
-            query.$or = [
-                { message: { $regex: search, $options: 'i' } },
-                { source: { $regex: search, $options: 'i' } },
-                { stack: { $regex: search, $options: 'i' } }
+            where.OR = [
+                { message: { contains: search, mode: 'insensitive' } },
+                { source: { contains: search, mode: 'insensitive' } },
+                { stack: { contains: search, mode: 'insensitive' } }
             ];
         }
 
         // Delete all matching error logs
-        const result = await ErrorLog.deleteMany(query);
+        const result = await prisma.errorLog.deleteMany({ where });
 
         return NextResponse.json({ 
             success: true, 
-            deletedCount: result.deletedCount,
-            message: `Successfully deleted ${result.deletedCount} error log${result.deletedCount === 1 ? '' : 's'}`
+            deletedCount: result.count,
+            message: `Successfully deleted ${result.count} error log${result.count === 1 ? '' : 's'}`
         });
     } catch (error) {
         console.error("Error deleting error logs:", error);
         await logServerError(error, request, 'error-logs-delete-all');
         return NextResponse.json({ error: "Failed to delete error logs" }, { status: 500 });
     }
-} 
+}

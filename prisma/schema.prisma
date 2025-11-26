@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String   @id @default(cuid())
+  name                  String
+  mail                  String   @unique
+  password              String
+  rank                  String   @default("Werknemer") // Developer, Eigenaar, Manager, Werknemer
+  twoFactorSecret       String?
+  twoFactorEnabled      Boolean  @default(false)
+  twoFactorBackupCodes  Json?    // Array of {code, used, usedAt}
+  twoFactorSetupCompleted Boolean @default(false)
+  loginAttempts         Json     @default("{}") // {failedCount, lastFailedAttempt, lockedUntil, totalAttempts}
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  
+  loginHistory          LoginHistory[]
+  errorLogs             ErrorLog[]
+  sessions              UserSession[]
+  
+  @@index([rank])
+  @@map("users")
+}
+
+model Item {
+  id          String    @id @default(cuid())
+  name        String
+  category    String
+  tags        String[]
+  image       String?
+  link        String?
+  releaseDate DateTime? @map("releaseDate")
+  isFeatured  Boolean   @default(false)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  @@index([category])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@map("items")
+}
+
+model FAQ {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("faqs")
+}
+
+model LoginHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  email         String
+  loginAttempt  Json     // {success, failureReason, timestamp}
+  deviceInfo    Json     // {userAgent, browser, os, device, isMobile}
+  location      Json     // {ipAddress, country, region, city, timezone, coordinates}
+  sessionInfo   Json?    // {sessionToken, sessionDuration, logoutTime, logoutReason}
+  security      Json     // {isFirstLogin, isSuspiciousActivity, suspiciousReasons, riskScore}
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([email])
+  @@index([createdAt(sort: Desc)])
+  @@map("login_history")
+}
+
+model UserSession {
+  id            String    @id @default(cuid())
+  userId        String
+  sessionToken  String    @unique
+  jwtToken      String
+  deviceInfo    Json      // {userAgent, browser, os, device, isMobile}
+  location      Json      // {ipAddress, country, region, city, timezone, coordinates}
+  loginTime     DateTime  @default(now())
+  lastActivity  DateTime  @default(now())
+  expiresAt     DateTime
+  isActive      Boolean   @default(true)
+  logoutTime    DateTime?
+  logoutReason  String?   // manual, timeout, force_logout, token_expired
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isActive])
+  @@index([sessionToken])
+  @@index([jwtToken])
+  @@index([expiresAt])
+  @@index([lastActivity])
+  @@map("user_sessions")
+}
+
+model ErrorLog {
+  id            String    @id @default(cuid())
+  message       String
+  stack         String?
+  level         String    @default("error") // error, warning, info, debug
+  source        String?
+  userId        String?
+  userAgent     String?
+  ipAddress     String?
+  url           String?
+  method        String?
+  requestBody   Json?
+  responseStatus Int?
+  resolved      Boolean   @default(false)
+  resolvedBy    String?
+  resolvedAt    DateTime?
+  tags          String[]
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([level])
+  @@index([resolved])
+  @@index([source])
+  @@index([createdAt(sort: Desc)])
+  @@map("error_logs")
+}
+
+model Footer {
+  id            String   @id @default(cuid())
+  columns       Json     // Array of {title, items: [{text, link, isExternal}]}
+  socialMedia   Json     // {youtube, facebook, instagram, twitter, linkedin}
+  contactInfo   Json     // {name, address, phone, email}
+  backgroundColor String @default("#202020")
+  textColor     String   @default("#fefefe")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  @@map("footers")
+}
+
+model LegalSettings {
+  id            String   @id @default(cuid())
+  disclaimer    String   @default("")
+  privacyPolicy String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("legal_settings")
+}
+
+enum UserRole {
+  regular
+  admin
+}
+
+enum UserStatus {
+  active
+  banned
+}
+
+model UserAccount {
+  user_id        String     @id @default(cuid()) @map("user_id")
+  username       String     @unique
+  email          String     @unique
+  hashed_password String    @map("hashed_password")
+  join_date      DateTime   @default(now()) @map("join_date")
+  last_login     DateTime?  @map("last_login")
+  profile_picture String    @map("profile_picture")
+  user_role      UserRole   @default(regular) @map("user_role")
+  status         UserStatus @default(active)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  
+  @@index([username])
+  @@index([email])
+  @@index([user_role])
+  @@index([status])
+  @@map("user_accounts")
+}
+

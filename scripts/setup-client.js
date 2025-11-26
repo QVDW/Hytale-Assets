@@ -18,7 +18,7 @@
  */
 
 require('dotenv').config();
-const mongoose = require('mongoose');
+const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const fs = require('fs');
 const path = require('path');
@@ -26,82 +26,8 @@ const path = require('path');
 // Import client configuration
 const clientConfig = require('../client.config.js');
 
-// MongoDB connection
-async function connectDB() {
-  try {
-    const mongoUri = process.env.MONGODB_URI;
-    if (!mongoUri) {
-      throw new Error('MONGODB_URI environment variable is required');
-    }
-    
-    await mongoose.connect(mongoUri);
-    console.log('✅ Connected to MongoDB');
-  } catch (error) {
-    console.error('❌ MongoDB connection failed:', error);
-    process.exit(1);
-  }
-}
-
-// User schema and model with rank field
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  mail: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  rank: { 
-    type: String, 
-    enum: ["Developer", "Eigenaar", "Manager", "Werknemer"],
-    default: "Werknemer" 
-  },
-  created_at: { type: Date, default: Date.now },
-  updated_at: { type: Date, default: Date.now },
-});
-
-const User = mongoose.models.User || mongoose.model('User', userSchema);
-
-// Footer schema and model
-const footerColumnSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  items: [{
-    text: { type: String, required: true },
-    link: { type: String, required: false },
-    isExternal: { type: Boolean, default: false }
-  }]
-});
-
-const socialMediaSchema = new mongoose.Schema({
-  youtube: { type: String, default: "" },
-  facebook: { type: String, default: "" },
-  instagram: { type: String, default: "" },
-  twitter: { type: String, default: "" },
-  linkedin: { type: String, default: "" }
-}, { _id: false });
-
-const contactInfoSchema = new mongoose.Schema({
-  name: { type: String, default: "" },
-  address: { type: String, default: "" },
-  phone: { type: String, default: "" },
-  email: { type: String, default: "" }
-}, { _id: false });
-
-const footerSchema = new mongoose.Schema({
-  columns: { type: [footerColumnSchema], required: true },
-  socialMedia: { type: socialMediaSchema, required: true },
-  contactInfo: { type: contactInfoSchema, required: true },
-  backgroundColor: { type: String, default: "#202020" },
-  textColor: { type: String, default: "#fefefe" },
-  created_at: { type: Date, default: Date.now },
-  updated_at: { type: Date, default: Date.now },
-});
-
-const Footer = mongoose.models.Footer || mongoose.model('Footer', footerSchema);
-
-// Legal settings schema and model
-const legalSchema = new mongoose.Schema({
-  disclaimer: { type: String, default: '' },
-  privacyPolicy: { type: String, default: '' }
-});
-
-const LegalSettings = mongoose.models.LegalSettings || mongoose.model('LegalSettings', legalSchema);
+// Initialize Prisma Client
+const prisma = new PrismaClient();
 
 // Setup color theme
 async function setupColorTheme() {
@@ -153,12 +79,17 @@ async function setupAdminUser() {
     }
     
     // Check if admin user already exists
-    const existingUser = await User.findOne({ mail: adminEmail });
+    const existingUser = await prisma.user.findUnique({
+      where: { mail: adminEmail }
+    });
+    
     if (existingUser) {
       // Update existing user to Developer rank if not already set
       if (!existingUser.rank || existingUser.rank !== "Developer") {
-        existingUser.rank = "Developer";
-        await existingUser.save();
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { rank: "Developer" }
+        });
         console.log('✅ Admin user updated to Developer rank');
         console.log(`📧 Email: ${adminEmail}`);
         console.log('👑 Rank: Developer (full access)');
@@ -173,14 +104,15 @@ async function setupAdminUser() {
     const hashedPassword = await bcrypt.hash(adminPassword, saltRounds);
     
     // Create admin user with Developer rank
-    const adminUser = new User({
-      name: adminName,
-      mail: adminEmail,
-      password: hashedPassword,
-      rank: "Developer",
+    await prisma.user.create({
+      data: {
+        name: adminName,
+        mail: adminEmail,
+        password: hashedPassword,
+        rank: "Developer",
+      }
     });
     
-    await adminUser.save();
     console.log('✅ Admin user created successfully with Developer rank');
     console.log(`📧 Email: ${adminEmail}`);
     console.log('🔐 Password: (from environment variable)');
@@ -196,7 +128,7 @@ async function setupFooterSettings() {
     console.log('🦶 Setting up footer settings...');
     
     // Check if footer settings already exist
-    const existingFooter = await Footer.findOne();
+    const existingFooter = await prisma.footer.findFirst();
     if (existingFooter) {
       console.log('ℹ️ Footer settings already exist. Skipping creation.');
       return;
@@ -210,8 +142,9 @@ async function setupFooterSettings() {
       textColor: clientConfig.footer.textColor,
     };
     
-    const footer = new Footer(footerData);
-    await footer.save();
+    await prisma.footer.create({
+      data: footerData
+    });
     
     console.log('✅ Footer settings created successfully');
   } catch (error) {
@@ -225,7 +158,7 @@ async function setupLegalSettings() {
     console.log('⚖️ Setting up legal settings...');
     
     // Check if legal settings already exist
-    const existingLegal = await LegalSettings.findOne();
+    const existingLegal = await prisma.legalSettings.findFirst();
     if (existingLegal) {
       console.log('ℹ️ Legal settings already exist. Skipping creation.');
       return;
@@ -236,8 +169,9 @@ async function setupLegalSettings() {
       privacyPolicy: clientConfig.legal.privacyPolicy,
     };
     
-    const legal = new LegalSettings(legalData);
-    await legal.save();
+    await prisma.legalSettings.create({
+      data: legalData
+    });
     
     console.log('✅ Legal settings created successfully');
   } catch (error) {
@@ -250,9 +184,9 @@ async function main() {
   console.log('🚀 Starting client template setup...\n');
   
   // Validate environment variables
-  if (!process.env.MONGODB_URI) {
-    console.error('❌ MONGODB_URI environment variable is required');
-    console.log('📝 Please create a .env file based on env.example');
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL environment variable is required');
+    console.log('📝 Please create a .env file with DATABASE_URL pointing to your PostgreSQL database');
     process.exit(1);
   }
   
@@ -280,8 +214,9 @@ async function main() {
   }
   
   try {
-    // Connect to database
-    await connectDB();
+    // Test database connection
+    await prisma.$connect();
+    console.log('✅ Connected to database');
     
     // Run setup tasks
     await setupColorTheme();
@@ -300,8 +235,8 @@ async function main() {
     console.error('❌ Setup failed:', error);
     process.exit(1);
   } finally {
-    await mongoose.disconnect();
-    console.log('👋 Disconnected from MongoDB');
+    await prisma.$disconnect();
+    console.log('👋 Disconnected from database');
   }
 }
 
@@ -310,4 +245,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { main }; 
+module.exports = { main };

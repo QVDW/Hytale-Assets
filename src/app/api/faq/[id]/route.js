@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../../libs/mongodb";
-import FAQ from "../../../../../models/faq";
+import prisma from "../../../../../libs/database";
 import { logServerError } from "../../../../utils/serverErrorLogger";
 
 // Get a specific FAQ by ID
@@ -9,8 +8,9 @@ export async function GET(request, context) {
     const { params } = context;
     const { id } = await params;
     
-    await connectMongoDB();
-    const faq = await FAQ.findById(id);
+    const faq = await prisma.faq.findUnique({
+      where: { id }
+    });
     
     if (!faq) {
       return NextResponse.json(
@@ -37,9 +37,10 @@ export async function PUT(request, context) {
     const { id } = await params;
     const { question, answer, isActive } = await request.json();
     
-    await connectMongoDB();
+    const faq = await prisma.faq.findUnique({
+      where: { id }
+    });
     
-    const faq = await FAQ.findById(id);
     if (!faq) {
       return NextResponse.json(
         { message: "FAQ not found" },
@@ -47,15 +48,14 @@ export async function PUT(request, context) {
       );
     }
     
-    const updatedFAQ = await FAQ.findByIdAndUpdate(
-      id,
-      {
+    const updatedFAQ = await prisma.faq.update({
+      where: { id },
+      data: {
         question,
         answer,
         isActive: isActive !== undefined ? isActive : faq.isActive,
-      },
-      { new: true }
-    );
+      }
+    });
     
     return NextResponse.json({ 
       message: "FAQ updated successfully", 

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../../libs/mongodb";
-import ErrorLog from "../../../../../models/errorLog";
+import prisma from "../../../../../libs/database";
 import { requirePermission } from "../../../../utils/authMiddleware";
 import { PERMISSIONS } from "../../../../utils/permissions";
 import { logServerError } from "../../../../utils/serverErrorLogger";
@@ -13,24 +12,25 @@ export async function PUT(request, { params }) {
             return user; // Return error response
         }
 
-        await connectMongoDB();
-
         const { id } = await params;
         const body = await request.json();
         const { resolved } = body;
 
         const updateData = {
             resolved: resolved === true || resolved === 'true',
-            resolvedBy: resolved ? user._id : null,
+            resolvedBy: resolved ? user.id : null,
             resolvedAt: resolved ? new Date() : null
         };
 
-        const errorLog = await ErrorLog.findByIdAndUpdate(
-            id,
-            updateData,
-            { new: true }
-        ).populate('userId', 'name mail rank')
-         .populate('resolvedBy', 'name mail');
+        const errorLog = await prisma.errorLog.update({
+            where: { id },
+            data: updateData,
+            include: {
+                user: {
+                    select: { id: true, name: true, mail: true, rank: true }
+                }
+            }
+        });
 
         if (!errorLog) {
             return NextResponse.json({ error: "Error log not found" }, { status: 404 });
@@ -42,6 +42,9 @@ export async function PUT(request, { params }) {
             message: `Error log ${resolved ? 'resolved' : 'unresolved'} successfully`
         });
     } catch (error) {
+        if (error.code === 'P2025') {
+            return NextResponse.json({ error: "Error log not found" }, { status: 404 });
+        }
         console.error("Error updating error log:", error);
         await logServerError(error, request, 'error-logs-put');
         return NextResponse.json({ error: "Failed to update error log" }, { status: 500 });
@@ -56,14 +59,17 @@ export async function DELETE(request, { params }) {
             return user; // Return error response
         }
 
-        await connectMongoDB();
-
         const { id } = await params;
 
-        const errorLog = await ErrorLog.findByIdAndDelete(id);
-
-        if (!errorLog) {
-            return NextResponse.json({ error: "Error log not found" }, { status: 404 });
+        try {
+            await prisma.errorLog.delete({
+                where: { id }
+            });
+        } catch (error) {
+            if (error.code === 'P2025') {
+                return NextResponse.json({ error: "Error log not found" }, { status: 404 });
+            }
+            throw error;
         }
 
         return NextResponse.json({ 
@@ -75,4 +81,4 @@ export async function DELETE(request, { params }) {
         await logServerError(error, request, 'error-logs-delete');
         return NextResponse.json({ error: "Failed to delete error log" }, { status: 500 });
     }
-} 
+}

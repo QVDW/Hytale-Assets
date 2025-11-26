@@ -4,9 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import connectMongoDB from '../../libs/mongodb';
-import UserSession from '../../models/userSession';
-import LoginHistory from '../../models/loginHistory';
+import prisma from '../../libs/database';
 
 // Parse User Agent for device information
 export const parseUserAgent = (userAgent) => {
@@ -153,8 +151,6 @@ export const getClientIP = (request) => {
 // Create a new session
 export const createSession = async (userId, jwtToken, request) => {
     try {
-        await connectMongoDB();
-
         const userAgent = request.headers.get('user-agent') || 'Unknown';
         const ipAddress = getClientIP(request);
         
@@ -175,16 +171,16 @@ export const createSession = async (userId, jwtToken, request) => {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
 
-        const session = await UserSession.create({
-            userId,
-            sessionToken,
-            jwtToken,
-            deviceInfo,
-            location,
-            expiresAt
+        const session = await prisma.userSession.create({
+            data: {
+                userId,
+                sessionToken,
+                jwtToken,
+                deviceInfo,
+                location,
+                expiresAt
+            }
         });
-
-        // Session created successfully
 
         return session;
     } catch (error) {
@@ -196,8 +192,6 @@ export const createSession = async (userId, jwtToken, request) => {
 // Log login attempt
 export const logLoginAttempt = async (email, userId, success, failureReason, request, sessionToken = null) => {
     try {
-        await connectMongoDB();
-
         const userAgent = request.headers.get('user-agent') || 'Unknown';
         const ipAddress = getClientIP(request);
         
@@ -214,20 +208,22 @@ export const logLoginAttempt = async (email, userId, success, failureReason, req
         // Check for suspicious activity
         const security = await analyzeSecurity(email, userId, ipAddress, userAgent, success);
 
-        const loginHistory = await LoginHistory.create({
-            userId,
-            email,
-            loginAttempt: {
-                success,
-                failureReason,
-                timestamp: new Date()
-            },
-            deviceInfo,
-            location,
-            sessionInfo: {
-                sessionToken
-            },
-            security
+        const loginHistory = await prisma.loginHistory.create({
+            data: {
+                userId: userId || '',
+                email,
+                loginAttempt: {
+                    success,
+                    failureReason,
+                    timestamp: new Date()
+                },
+                deviceInfo,
+                location,
+                sessionInfo: {
+                    sessionToken
+                },
+                security
+            }
         });
 
         return loginHistory;
@@ -251,54 +247,102 @@ const analyzeSecurity = async (email, userId, ipAddress, userAgent) => {
             return security;
         }
 
-        // Check if first login
-        const loginCount = await LoginHistory.countDocuments({
-            userId,
-            'loginAttempt.success': true
+        // Check if first login - get all login histories for user and filter
+        const allUserLogins = await prisma.loginHistory.findMany({
+            where: { userId },
+            select: { loginAttempt: true }
         });
         
-        security.isFirstLogin = loginCount === 0;
+        const successfulLogins = allUserLogins.filter(login => {
+            const attempt = login.loginAttempt;
+            return attempt && attempt.success === true;
+        });
+        
+        security.isFirstLogin = successfulLogins.length === 0;
 
         // Check for multiple failed attempts
-        const recentFailedAttempts = await LoginHistory.countDocuments({
-            email,
-            'loginAttempt.success': false,
-            'loginAttempt.timestamp': { $gte: new Date(Date.now() - 15 * 60 * 1000) } // Last 15 minutes
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        const recentAttempts = await prisma.loginHistory.findMany({
+            where: {
+                email,
+                createdAt: { gte: fifteenMinutesAgo }
+            },
+            select: { loginAttempt: true }
         });
 
-        if (recentFailedAttempts >= 3) {
+        const recentFailedAttempts = recentAttempts.filter(attempt => {
+            const loginAttempt = attempt.loginAttempt;
+            return loginAttempt && loginAttempt.success === false;
+        });
+
+        if (recentFailedAttempts.length >= 3) {
             security.suspiciousReasons.push('multiple_failed_attempts');
             security.riskScore += 30;
         }
 
         // Check for unusual location
-        const recentSuccessfulLogins = await LoginHistory.find({
-            userId,
-            'loginAttempt.success': true,
-            'loginAttempt.timestamp': { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
-        }).limit(10);
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const recentSuccessfulLogins = await prisma.loginHistory.findMany({
+            where: {
+                userId,
+                createdAt: { gte: thirtyDaysAgo }
+            },
+            select: { loginAttempt: true, location: true }
+        });
 
-        const knownIPs = new Set(recentSuccessfulLogins.map(login => login.location.ipAddress));
+        const successfulRecentLogins = recentSuccessfulLogins.filter(login => {
+            const attempt = login.loginAttempt;
+            return attempt && attempt.success === true;
+        }).slice(0, 10);
+
+        const knownIPs = new Set(successfulRecentLogins.map(login => {
+            const loc = login.location;
+            return loc && loc.ipAddress;
+        }).filter(Boolean));
         if (knownIPs.size > 0 && !knownIPs.has(ipAddress)) {
             security.suspiciousReasons.push('unusual_location');
             security.riskScore += 20;
         }
 
         // Check for unusual device
-        const knownUserAgents = new Set(recentSuccessfulLogins.map(login => login.deviceInfo.userAgent));
+        const recentLoginsWithDevice = await prisma.loginHistory.findMany({
+            where: {
+                userId,
+                createdAt: { gte: thirtyDaysAgo }
+            },
+            select: { loginAttempt: true, deviceInfo: true }
+        });
+
+        const successfulWithDevice = recentLoginsWithDevice.filter(login => {
+            const attempt = login.loginAttempt;
+            return attempt && attempt.success === true;
+        }).slice(0, 10);
+
+        const knownUserAgents = new Set(successfulWithDevice.map(login => {
+            const dev = login.deviceInfo;
+            return dev && dev.userAgent;
+        }).filter(Boolean));
         if (knownUserAgents.size > 0 && !knownUserAgents.has(userAgent)) {
             security.suspiciousReasons.push('unusual_device');
             security.riskScore += 15;
         }
 
         // Check for rapid logins
-        const recentLogins = await LoginHistory.countDocuments({
-            userId,
-            'loginAttempt.success': true,
-            'loginAttempt.timestamp': { $gte: new Date(Date.now() - 5 * 60 * 1000) } // Last 5 minutes
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const rapidLogins = await prisma.loginHistory.findMany({
+            where: {
+                userId,
+                createdAt: { gte: fiveMinutesAgo }
+            },
+            select: { loginAttempt: true }
         });
 
-        if (recentLogins >= 3) {
+        const rapidSuccessfulLogins = rapidLogins.filter(login => {
+            const attempt = login.loginAttempt;
+            return attempt && attempt.success === true;
+        });
+
+        if (rapidSuccessfulLogins.length >= 3) {
             security.suspiciousReasons.push('rapid_logins');
             security.riskScore += 25;
         }
@@ -320,12 +364,15 @@ const analyzeSecurity = async (email, userId, ipAddress, userAgent) => {
 // Update session activity
 export const updateSessionActivity = async (sessionToken) => {
     try {
-        await connectMongoDB();
-        
-        await UserSession.findOneAndUpdate(
-            { sessionToken, isActive: true },
-            { lastActivity: new Date() }
-        );
+        await prisma.userSession.updateMany({
+            where: { 
+                sessionToken, 
+                isActive: true 
+            },
+            data: { 
+                lastActivity: new Date() 
+            }
+        });
     } catch (error) {
         console.error('Error updating session activity:', error);
     }
@@ -334,13 +381,23 @@ export const updateSessionActivity = async (sessionToken) => {
 // Validate and get session
 export const getSessionByToken = async (sessionToken) => {
     try {
-        await connectMongoDB();
-        
-        const session = await UserSession.findOne({
-            sessionToken,
-            isActive: true,
-            expiresAt: { $gt: new Date() }
-        }).populate('userId', 'name mail rank');
+        const session = await prisma.userSession.findFirst({
+            where: {
+                sessionToken,
+                isActive: true,
+                expiresAt: { gt: new Date() }
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        mail: true,
+                        rank: true
+                    }
+                }
+            }
+        });
 
         return session;
     } catch (error) {
@@ -352,10 +409,19 @@ export const getSessionByToken = async (sessionToken) => {
 // Cleanup expired sessions
 export const cleanupExpiredSessions = async () => {
     try {
-        await connectMongoDB();
-        
-        const result = await UserSession.cleanupExpiredSessions();
-        console.log(`Cleaned up ${result.modifiedCount} expired sessions`);
+        const now = new Date();
+        const result = await prisma.userSession.updateMany({
+            where: {
+                isActive: true,
+                expiresAt: { lt: now }
+            },
+            data: {
+                isActive: false,
+                logoutTime: now,
+                logoutReason: 'token_expired'
+            }
+        });
+        console.log(`Cleaned up ${result.count} expired sessions`);
         
         return result;
     } catch (error) {

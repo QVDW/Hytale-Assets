@@ -1,7 +1,5 @@
 import jwt from "jsonwebtoken";
-import connectMongoDB from "../../libs/mongodb";
-import User from "../../models/user";
-import UserSession from "../../models/userSession";
+import prisma from "../../libs/database";
 import { NextResponse } from "next/server";
 
 export async function getCurrentUser(request) {
@@ -21,38 +19,43 @@ export async function getCurrentUser(request) {
             return null;
         }
         
-        await connectMongoDB();
-        
         // Check if there's an active session for this JWT token
-        const activeSession = await UserSession.findOne({
-            jwtToken: token,
-            isActive: true,
-            expiresAt: { $gt: new Date() }
+        const activeSession = await prisma.userSession.findFirst({
+            where: {
+                jwtToken: token,
+                isActive: true,
+                expiresAt: { gt: new Date() }
+            }
         });
         
-        // Session validation passed
+        // If no active session, check if session was force logged out
         if (!activeSession) {
-            // Check if session was terminated (for debugging force logout if needed)
-            const inactiveSession = await UserSession.findOne({
-                jwtToken: token,
-                isActive: false
+            const inactiveSession = await prisma.userSession.findFirst({
+                where: {
+                    jwtToken: token,
+                    isActive: false
+                }
             });
             if (inactiveSession) {
                 // Session was force logged out, return null to trigger logout
                 return null;
             }
-        }
-        
-        if (!activeSession) {
+            // No session found (neither active nor inactive)
+            // Reject authentication - session tracking is required for security
+            // This prevents indefinite token reuse despite session expiry or forced logouts
             return null;
+        } else {
+            // Update session activity for active sessions
+            await prisma.userSession.update({
+                where: { id: activeSession.id },
+                data: { lastActivity: new Date() }
+            });
         }
         
-        // Update session activity
-        await UserSession.findByIdAndUpdate(activeSession._id, {
-            lastActivity: new Date()
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, name: true, mail: true, rank: true, twoFactorEnabled: true, createdAt: true, updatedAt: true }
         });
-        
-        const user = await User.findById(decoded.userId).select("-password");
         return user;
     } catch (error) {
         console.error("Error getting current user:", error);
@@ -92,7 +95,9 @@ export async function checkUserManagementPermission(request, targetUserId = null
     
     // If we have a target user, check if current user can manage them
     if (targetUserId) {
-        const targetUser = await User.findById(targetUserId);
+        const targetUser = await prisma.user.findUnique({
+            where: { id: targetUserId }
+        });
         if (!targetUser) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }

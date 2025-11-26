@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import connectMongoDB from "../../../../../../libs/mongodb";
-import User from "../../../../../../models/user";
+import prisma from "../../../../../../libs/database";
 import { getCurrentUser } from "../../../../../utils/authMiddleware";
 
 // Get unused backup codes
@@ -12,22 +11,24 @@ export async function GET(request) {
             return NextResponse.json({ error: "Authentication required" }, { status: 401 });
         }
 
-        await connectMongoDB();
-        const dbUser = await User.findById(user._id);
+        const dbUser = await prisma.user.findUnique({
+            where: { id: user.id }
+        });
         
         if (!dbUser.twoFactorEnabled) {
             return NextResponse.json({ error: "2FA not enabled" }, { status: 400 });
         }
 
-        const unusedCodes = dbUser.twoFactorBackupCodes
-            .filter(bc => !bc.used)
-            .map(bc => bc.code);
+        const backupCodes = dbUser.twoFactorBackupCodes || [];
+        const unusedCodes = backupCodes
+            .filter((bc) => !bc.used)
+            .map((bc) => bc.code);
 
         return NextResponse.json({
             backupCodes: unusedCodes,
-            total: dbUser.twoFactorBackupCodes.length,
+            total: backupCodes.length,
             unused: unusedCodes.length,
-            used: dbUser.twoFactorBackupCodes.length - unusedCodes.length
+            used: backupCodes.length - unusedCodes.length
         });
 
     } catch (error) {
@@ -52,8 +53,9 @@ export async function POST(request) {
             return NextResponse.json({ error: "Password required to regenerate backup codes" }, { status: 400 });
         }
 
-        await connectMongoDB();
-        const dbUser = await User.findById(user._id);
+        const dbUser = await prisma.user.findUnique({
+            where: { id: user.id }
+        });
         
         if (!dbUser.twoFactorEnabled) {
             return NextResponse.json({ error: "2FA not enabled" }, { status: 400 });
@@ -78,8 +80,11 @@ export async function POST(request) {
         }
 
         // Update user with new backup codes
-        await User.findByIdAndUpdate(user._id, {
-            twoFactorBackupCodes: backupCodes
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                twoFactorBackupCodes: backupCodes
+            }
         });
 
         return NextResponse.json({
@@ -94,4 +99,4 @@ export async function POST(request) {
             { status: 500 }
         );
     }
-} 
+}

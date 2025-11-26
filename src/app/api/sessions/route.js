@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../libs/mongodb";
-import UserSession from "../../../../models/userSession";
-import User from "../../../../models/user";
+import prisma from "../../../../libs/database";
 import { getCurrentUser } from "../../../utils/authMiddleware";
 import { hasPermission, canViewUserSessions, getVisibleSessionUsers, PERMISSIONS } from "../../../utils/permissions";
 
 export async function GET(request) {
     try {
-        await connectMongoDB();
-        
         const currentUser = await getCurrentUser(request);
         
         if (!currentUser) {
@@ -26,11 +22,14 @@ export async function GET(request) {
         const page = parseInt(url.searchParams.get('page')) || 1;
         const activeOnly = url.searchParams.get('activeOnly') === 'true';
         
-        let query = {};
+        let where = {};
         
         // If requesting specific user's sessions, check permissions
         if (userId) {
-            const targetUser = await User.findById(userId).select('rank');
+            const targetUser = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { rank: true }
+            });
             if (!targetUser) {
                 return NextResponse.json({ error: "User not found" }, { status: 404 });
             }
@@ -39,28 +38,37 @@ export async function GET(request) {
                 return NextResponse.json({ error: "Cannot view this user's sessions" }, { status: 403 });
             }
             
-            query.userId = userId;
+            where.userId = userId;
         } else {
             // Get visible user ranks based on current user's permissions
             const visibleRanks = getVisibleSessionUsers(currentUser.rank);
-            const visibleUsers = await User.find({ rank: { $in: visibleRanks } }).select('_id');
-            query.userId = { $in: visibleUsers.map(u => u._id) };
+            const visibleUsers = await prisma.user.findMany({
+                where: { rank: { in: visibleRanks } },
+                select: { id: true }
+            });
+            where.userId = { in: visibleUsers.map(u => u.id) };
         }
         
         if (activeOnly) {
-            query.isActive = true;
-            query.expiresAt = { $gt: new Date() };
+            where.isActive = true;
+            where.expiresAt = { gt: new Date() };
         }
         
         const skip = (page - 1) * limit;
         
-        const sessions = await UserSession.find(query)
-            .populate('userId', 'name mail rank')
-            .sort({ lastActivity: -1 })
-            .limit(limit)
-            .skip(skip);
+        const sessions = await prisma.userSession.findMany({
+            where,
+            include: {
+                user: {
+                    select: { id: true, name: true, mail: true, rank: true }
+                }
+            },
+            orderBy: { lastActivity: 'desc' },
+            take: limit,
+            skip
+        });
             
-        const total = await UserSession.countDocuments(query);
+        const total = await prisma.userSession.count({ where });
         
         return NextResponse.json({
             sessions,
@@ -80,8 +88,6 @@ export async function GET(request) {
 
 export async function DELETE(request) {
     try {
-        await connectMongoDB();
-        
         const currentUser = await getCurrentUser(request);
         
         if (!currentUser) {
@@ -97,7 +103,10 @@ export async function DELETE(request) {
         
         if (logoutAll && userId) {
             // Force logout all sessions for a specific user
-            const targetUser = await User.findById(userId).select('rank');
+            const targetUser = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { rank: true }
+            });
             if (!targetUser) {
                 return NextResponse.json({ error: "User not found" }, { status: 404 });
             }
@@ -106,27 +115,54 @@ export async function DELETE(request) {
                 return NextResponse.json({ error: "Cannot manage this user's sessions" }, { status: 403 });
             }
             
-            const result = await UserSession.forceLogoutUser(userId);
-            
-            return NextResponse.json({
-                message: `Logged out ${result.modifiedCount} sessions`,
-                loggedOutSessions: result.modifiedCount
+            const result = await prisma.userSession.updateMany({
+                where: {
+                    userId,
+                    isActive: true
+                },
+                data: {
+                    isActive: false,
+                    logoutTime: new Date(),
+                    logoutReason: 'force_logout'
+                }
             });
             
-                } else if (sessionToken) {
+            return NextResponse.json({
+                message: `Logged out ${result.count} sessions`,
+                loggedOutSessions: result.count
+            });
+            
+        } else if (sessionToken) {
             // Force logout specific session
-            const session = await UserSession.findOne({ sessionToken }).populate('userId', 'rank');
+            const session = await prisma.userSession.findFirst({
+                where: { sessionToken },
+                include: {
+                    user: {
+                        select: { rank: true }
+                    }
+                }
+            });
             
             if (!session) {
                 return NextResponse.json({ error: "Session not found" }, { status: 404 });
             }
 
-            if (!canViewUserSessions(currentUser.rank, session.userId.rank)) {
+            if (!canViewUserSessions(currentUser.rank, session.user.rank)) {
                 return NextResponse.json({ error: "Cannot manage this user's sessions" }, { status: 403 });
             }
 
             // Deactivate by jwtToken since that's what auth middleware uses for validation
-            await UserSession.deactivateSession(session.jwtToken, 'jwtToken');
+            await prisma.userSession.updateMany({
+                where: {
+                    jwtToken: session.jwtToken,
+                    isActive: true
+                },
+                data: {
+                    isActive: false,
+                    logoutTime: new Date(),
+                    logoutReason: 'force_logout'
+                }
+            });
 
             return NextResponse.json({
                 message: "Session terminated successfully"
@@ -140,4 +176,4 @@ export async function DELETE(request) {
         console.error("Error managing sessions:", error);
         return NextResponse.json({ error: "Failed to manage sessions" }, { status: 500 });
     }
-} 
+}

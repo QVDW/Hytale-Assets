@@ -1,5 +1,4 @@
-import connectMongoDB from "../../libs/mongodb";
-import ErrorLog from "../../models/errorLog";
+import prisma from "../../libs/database";
 
 /**
  * Server-side error logger for API routes
@@ -11,8 +10,6 @@ import ErrorLog from "../../models/errorLog";
  */
 export async function logServerError(error, request, source = 'api-route', userId = null, additionalData = {}) {
     try {
-        await connectMongoDB();
-
         // Extract error information
         const message = error.message || 'An unknown server error occurred';
         const stack = error.stack || error.toString();
@@ -22,43 +19,43 @@ export async function logServerError(error, request, source = 'api-route', userI
         const forwarded = request.headers.get('x-forwarded-for');
         const ipAddress = forwarded ? forwarded.split(',')[0] : request.headers.get('x-real-ip') || 'unknown';
         
-        // Validate userId - only set if it's a valid ObjectId
+        // Validate userId - only set if it's a valid CUID
         let validUserId = null;
         if (userId) {
             try {
-                if (typeof userId === 'string' && userId.match(/^[0-9a-fA-F]{24}$/)) {
-                    validUserId = userId;
-                } else if (userId.constructor && userId.constructor.name === 'ObjectId') {
+                if (typeof userId === 'string' && userId.length > 0) {
                     validUserId = userId;
                 }
             } catch {
-                // Invalid ObjectId, leave as null
+                // Invalid userId, leave as null
             }
         }
 
         // Create error log
-        const errorLog = await ErrorLog.create({
-            message,
-            stack,
-            level: 'error',
-            source,
-            userId: validUserId,
-            userAgent,
-            ipAddress,
-            url: request.url,
-            method: request.method,
-            resolved: false,
-            tags: ['server-error', 'api-route'],
-            metadata: {
-                ...additionalData,
-                timestamp: new Date().toISOString(),
-                errorName: error.name,
-                errorCode: error.code
+        const errorLog = await prisma.errorLog.create({
+            data: {
+                message,
+                stack,
+                level: 'error',
+                source,
+                userId: validUserId,
+                userAgent,
+                ipAddress,
+                url: request.url,
+                method: request.method,
+                resolved: false,
+                tags: ['server-error', 'api-route'],
+                metadata: {
+                    ...additionalData,
+                    timestamp: new Date().toISOString(),
+                    errorName: error.name,
+                    errorCode: error.code
+                }
             }
         });
 
-        console.log(`Error logged to database with ID: ${errorLog._id}`);
-        return errorLog._id;
+        console.log(`Error logged to database with ID: ${errorLog.id}`);
+        return errorLog.id;
     } catch (logError) {
         console.error('Failed to log error to database:', logError);
         return null;

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../libs/mongodb";
-import Item from "../../../../models/item";
+import prisma from "../../../../libs/database";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -56,9 +55,6 @@ export async function POST(request) {
             }
         }
 
-        await connectMongoDB();
-        console.log("MongoDB connected successfully");
-
         const itemData = { 
             name, 
             category, 
@@ -72,7 +68,9 @@ export async function POST(request) {
         
         console.log("Attempting to create item with data:", itemData);
 
-        const result = await Item.create(itemData);
+        const result = await prisma.item.create({
+            data: itemData
+        });
         console.log("Item created successfully:", result);
         
         return NextResponse.json({ message: "Item created", item: result });
@@ -87,31 +85,59 @@ export async function POST(request) {
 }
 
 export async function GET(request) {
-    await connectMongoDB();
-    
     const { searchParams } = new URL(request.url);
-    const sortOrder = searchParams.get('sort') === 'asc' ? 1 : -1;
+    const sortOrder = searchParams.get('sort') === 'asc' ? 'asc' : 'desc';
     
-    const items = await Item.find().sort({ 
-        "releaseDate": { $exists: true },
-        "releaseDate": sortOrder,
-        "updated_at": sortOrder 
+    const items = await prisma.item.findMany({
+        orderBy: [
+            { releaseDate: sortOrder },
+            { updatedAt: sortOrder }
+        ]
     });
     
     return NextResponse.json(items);
 }
 
 export async function DELETE(request) {
-    const id = request.nextUrl.searchParams.get("id");
-    await connectMongoDB();
-    const item = await Item.findByIdAndDelete(id);
-    if (item && item.image) {
-        const imagePath = path.join(process.cwd(), "public", item.image);
-        try {
-            await fs.unlink(imagePath);
-        } catch (error) {
-            console.error("Error deleting image file:", error);
+    try {
+        const id = request.nextUrl.searchParams.get("id");
+        
+        if (!id) {
+            return NextResponse.json({ error: "Item ID is required" }, { status: 400 });
         }
+        
+        const item = await prisma.item.findUnique({
+            where: { id }
+        });
+        
+        if (!item) {
+            return NextResponse.json({ error: "Item not found" }, { status: 404 });
+        }
+        
+        // Store image path before deletion
+        const imagePath = item.image ? path.join(process.cwd(), "public", item.image) : null;
+        
+        // Delete database record first to maintain atomicity
+        await prisma.item.delete({
+            where: { id }
+        });
+        
+        // Delete image file after successful database deletion
+        if (imagePath) {
+            try {
+                await fs.unlink(imagePath);
+            } catch (error) {
+                console.error("Error deleting image file:", error);
+                // Note: Database record is already deleted, so we log but don't fail
+            }
+        }
+        
+        return NextResponse.json({ message: "Item deleted" });
+    } catch (error) {
+        if (error.code === 'P2025') {
+            return NextResponse.json({ error: "Item not found" }, { status: 404 });
+        }
+        console.error("Error deleting item:", error);
+        return NextResponse.json({ error: "Failed to delete item" }, { status: 500 });
     }
-    return NextResponse.json({ message: "Item deleted" });
 }

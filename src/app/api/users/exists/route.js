@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../../libs/mongodb";
-import User from "../../../../../models/user";
+import prisma from "../../../../../libs/database";
 
 export async function GET() {
     try {
-        await connectMongoDB();
-        const userCount = await User.countDocuments();
+        const userCount = await prisma.user.count();
         return NextResponse.json({ 
             hasUsers: userCount > 0,
             count: userCount 

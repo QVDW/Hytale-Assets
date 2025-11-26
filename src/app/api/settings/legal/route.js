@@ -1,33 +1,19 @@
 import { NextResponse } from 'next/server';
-import connectMongoDB from '../../../../../libs/mongodb';
-import mongoose from 'mongoose';
-
-const legalSchema = new mongoose.Schema({
-  disclaimer: { type: String, default: '' },
-  privacyPolicy: { type: String, default: '' }
-});
+import prisma from '../../../../../libs/database';
 
 const defaultLegalSettings = {
   disclaimer: '',
   privacyPolicy: ''
 };
 
-let LegalSettings;
-
-try {
-  LegalSettings = mongoose.model('LegalSettings');
-} catch {
-  LegalSettings = mongoose.model('LegalSettings', legalSchema);
-}
-
 export async function GET() {
   try {
-    await connectMongoDB();
-    
-    let settings = await LegalSettings.findOne();
+    let settings = await prisma.legalSettings.findFirst();
     
     if (!settings) {
-      settings = await LegalSettings.create(defaultLegalSettings);
+      settings = await prisma.legalSettings.create({
+        data: defaultLegalSettings
+      });
     }
     
     return NextResponse.json(settings);
@@ -42,19 +28,19 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    await connectMongoDB();
     const body = await request.json();
     
-    let settings = await LegalSettings.findOne();
+    let settings = await prisma.legalSettings.findFirst();
     
     if (!settings) {
-      settings = await LegalSettings.create(body);
+      settings = await prisma.legalSettings.create({
+        data: body
+      });
     } else {
-      settings = await LegalSettings.findOneAndUpdate(
-        {},
-        body,
-        { new: true }
-      );
+      settings = await prisma.legalSettings.update({
+        where: { id: settings.id },
+        data: body
+      });
     }
     
     return NextResponse.json({ settings });
@@ -69,18 +55,17 @@ export async function POST(request) {
 
 export async function DELETE() {
   try {
-    await connectMongoDB();
-    
-    let settings = await LegalSettings.findOne();
+    let settings = await prisma.legalSettings.findFirst();
     
     if (!settings) {
-      settings = await LegalSettings.create(defaultLegalSettings);
+      settings = await prisma.legalSettings.create({
+        data: defaultLegalSettings
+      });
     } else {
-      settings = await LegalSettings.findOneAndUpdate(
-        {},
-        defaultLegalSettings,
-        { new: true }
-      );
+      settings = await prisma.legalSettings.update({
+        where: { id: settings.id },
+        data: defaultLegalSettings
+      });
     }
     
     return NextResponse.json({ settings });

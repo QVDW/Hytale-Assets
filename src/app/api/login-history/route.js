@@ -1,14 +1,10 @@
 import { NextResponse } from "next/server";
-import connectMongoDB from "../../../../libs/mongodb";
-import LoginHistory from "../../../../models/loginHistory";
-import User from "../../../../models/user";
+import prisma from "../../../../libs/database";
 import { getCurrentUser } from "../../../utils/authMiddleware";
 import { hasPermission, canViewUserSessions, getVisibleSessionUsers, PERMISSIONS } from "../../../utils/permissions";
 
 export async function GET(request) {
     try {
-        await connectMongoDB();
-        
         const currentUser = await getCurrentUser(request);
         
         if (!currentUser) {
@@ -29,11 +25,14 @@ export async function GET(request) {
         const suspiciousOnly = url.searchParams.get('suspiciousOnly') === 'true';
         const timeRange = url.searchParams.get('timeRange') || '7d'; // 7d, 30d, 90d, all
         
-        let query = {};
+        let where = {};
         
         // If requesting specific user's login history, check permissions
         if (userId) {
-            const targetUser = await User.findById(userId).select('rank');
+            const targetUser = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { rank: true }
+            });
             if (!targetUser) {
                 return NextResponse.json({ error: "User not found" }, { status: 404 });
             }
@@ -42,23 +41,15 @@ export async function GET(request) {
                 return NextResponse.json({ error: "Cannot view this user's login history" }, { status: 403 });
             }
             
-            query.userId = userId;
+            where.userId = userId;
         } else {
             // Get visible user ranks based on current user's permissions
             const visibleRanks = getVisibleSessionUsers(currentUser.rank);
-            const visibleUsers = await User.find({ rank: { $in: visibleRanks } }).select('_id');
-            query.userId = { $in: visibleUsers.map(u => u._id) };
-        }
-        
-        // Apply filters
-        if (successOnly) {
-            query['loginAttempt.success'] = true;
-        } else if (failedOnly) {
-            query['loginAttempt.success'] = false;
-        }
-        
-        if (suspiciousOnly) {
-            query['security.isSuspiciousActivity'] = true;
+            const visibleUsers = await prisma.user.findMany({
+                where: { rank: { in: visibleRanks } },
+                select: { id: true }
+            });
+            where.userId = { in: visibleUsers.map(u => u.id) };
         }
         
         // Apply time range filter
@@ -71,57 +62,110 @@ export async function GET(request) {
             };
             
             const since = new Date(Date.now() - (timeRangeMap[timeRange] || timeRangeMap['7d']));
-            query['loginAttempt.timestamp'] = { $gte: since };
+            where.createdAt = { gte: since };
         }
         
         const skip = (page - 1) * limit;
+        const hasJsonFilters = successOnly || failedOnly || suspiciousOnly;
         
-        const loginHistory = await LoginHistory.find(query)
-            .populate('userId', 'name mail rank')
-            .sort({ 'loginAttempt.timestamp': -1 })
-            .limit(limit)
-            .skip(skip);
+        let loginHistory, total, filteredHistory;
+        
+        if (hasJsonFilters) {
+            // When JSON filters are needed, fetch a reasonable batch size for filtering
+            // This prevents loading all records while still allowing JSON field filtering
+            const batchSize = Math.max(limit * 20, 1000); // Fetch up to 20 pages worth or 1000 records
             
-        const total = await LoginHistory.countDocuments(query);
-        
-        // Get summary statistics
-        const stats = await LoginHistory.aggregate([
-            { $match: query },
-            {
-                $group: {
-                    _id: null,
-                    totalAttempts: { $sum: 1 },
-                    successfulLogins: {
-                        $sum: { $cond: ['$loginAttempt.success', 1, 0] }
-                    },
-                    failedAttempts: {
-                        $sum: { $cond: ['$loginAttempt.success', 0, 1] }
-                    },
-                    suspiciousAttempts: {
-                        $sum: { $cond: ['$security.isSuspiciousActivity', 1, 0] }
-                    },
-                    uniqueUsers: { $addToSet: '$userId' },
-                    uniqueIPs: { $addToSet: '$location.ipAddress' }
-                }
-            },
-            {
-                $project: {
-                    totalAttempts: 1,
-                    successfulLogins: 1,
-                    failedAttempts: 1,
-                    suspiciousAttempts: 1,
-                    uniqueUserCount: { $size: '$uniqueUsers' },
-                    uniqueIPCount: { $size: '$uniqueIPs' },
-                    successRate: {
-                        $cond: [
-                            { $eq: ['$totalAttempts', 0] },
-                            0,
-                            { $multiply: [{ $divide: ['$successfulLogins', '$totalAttempts'] }, 100] }
-                        ]
+            const allMatchingRecords = await prisma.loginHistory.findMany({
+                where,
+                include: {
+                    user: {
+                        select: { id: true, name: true, mail: true, rank: true }
                     }
-                }
+                },
+                orderBy: { createdAt: 'desc' },
+                take: batchSize // Limit batch size to prevent memory exhaustion
+            });
+            
+            // Apply JSON field filters (loginAttempt.success, security.isSuspiciousActivity)
+            filteredHistory = allMatchingRecords;
+            
+            if (successOnly) {
+                filteredHistory = filteredHistory.filter(entry => {
+                    const attempt = entry.loginAttempt;
+                    return attempt && typeof attempt === 'object' && attempt.success === true;
+                });
+            } else if (failedOnly) {
+                filteredHistory = filteredHistory.filter(entry => {
+                    const attempt = entry.loginAttempt;
+                    return attempt && typeof attempt === 'object' && attempt.success === false;
+                });
             }
-        ]);
+            
+            if (suspiciousOnly) {
+                filteredHistory = filteredHistory.filter(entry => {
+                    const security = entry.security;
+                    return security && typeof security === 'object' && security.isSuspiciousActivity === true;
+                });
+            }
+            
+            // Apply pagination after filtering
+            total = filteredHistory.length;
+            loginHistory = filteredHistory.slice(skip, skip + limit);
+        } else {
+            // No JSON filters needed - use full database-level pagination for optimal performance
+            [loginHistory, total] = await Promise.all([
+                prisma.loginHistory.findMany({
+                    where,
+                    include: {
+                        user: {
+                            select: { id: true, name: true, mail: true, rank: true }
+                        }
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    skip,
+                    take: limit
+                }),
+                prisma.loginHistory.count({ where })
+            ]);
+            
+            // For statistics calculation, fetch all matching records (not just paginated subset)
+            // This ensures accurate statistics across all matching records
+            filteredHistory = await prisma.loginHistory.findMany({
+                where,
+                include: {
+                    user: {
+                        select: { id: true, name: true, mail: true, rank: true }
+                    }
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+        }
+        
+        // Calculate statistics from all filtered records (not just paginated subset)
+        const stats = {
+            totalAttempts: filteredHistory.length,
+            successfulLogins: filteredHistory.filter(entry => {
+                const attempt = entry.loginAttempt;
+                return attempt && typeof attempt === 'object' && attempt.success === true;
+            }).length,
+            failedAttempts: filteredHistory.filter(entry => {
+                const attempt = entry.loginAttempt;
+                return attempt && typeof attempt === 'object' && attempt.success === false;
+            }).length,
+            suspiciousAttempts: filteredHistory.filter(entry => {
+                const security = entry.security;
+                return security && typeof security === 'object' && security.isSuspiciousActivity === true;
+            }).length,
+            uniqueUserCount: new Set(filteredHistory.map(entry => entry.userId)).size,
+            uniqueIPCount: new Set(filteredHistory.map(entry => {
+                const loc = entry.location;
+                return loc && typeof loc === 'object' && loc.ipAddress;
+            }).filter(Boolean)).size
+        };
+        
+        stats.successRate = stats.totalAttempts > 0 
+            ? (stats.successfulLogins / stats.totalAttempts) * 100 
+            : 0;
         
         return NextResponse.json({
             loginHistory,
@@ -131,19 +175,11 @@ export async function GET(request) {
                 count: loginHistory.length,
                 totalRecords: total
             },
-            statistics: stats[0] || {
-                totalAttempts: 0,
-                successfulLogins: 0,
-                failedAttempts: 0,
-                suspiciousAttempts: 0,
-                uniqueUserCount: 0,
-                uniqueIPCount: 0,
-                successRate: 0
-            }
+            statistics: stats
         });
         
     } catch (error) {
         console.error("Error fetching login history:", error);
         return NextResponse.json({ error: "Failed to fetch login history" }, { status: 500 });
     }
-} 
+}

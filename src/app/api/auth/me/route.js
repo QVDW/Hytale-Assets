@@ -14,7 +14,7 @@ export async function GET(request) {
         const simulatedRank = request.headers.get("x-simulated-rank");
         
         const response = {
-            ...user.toObject(),
+            ...user,
             // Add simulated rank info for developers
             simulatedRank: (user.rank === "Developer" && simulatedRank) ? simulatedRank : null,
             isSimulating: user.rank === "Developer" && !!simulatedRank,
