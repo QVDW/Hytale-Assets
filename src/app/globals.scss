@@ -1,5 +1,6 @@
 @use 'sass:color' as sasscolor;
 @use '../styles/variables' as color;
+@use '../styles/frontend';
 
 @tailwind base;
 @tailwind components;

@@ -42,7 +42,6 @@ body.menu-open {
 header {
     height: 70px;
     color: color.$light;
-    background: color.$dark;
     position: absolute;
     width: 100%;
     z-index: 1000;
@@ -92,7 +91,7 @@ header {
       gap: 3rem;
       flex: 1;
       justify-content: flex-start;
-      margin-left: 2rem;
+      margin-left: 1rem;
 
       a {
         font-size: 1rem;
@@ -149,7 +148,7 @@ header {
         position: relative;
         display: flex;
         align-items: center;
-        width: 250px;
+        width: 400px;
 
         .search-icon {
           position: absolute;
@@ -180,6 +179,20 @@ header {
             width: 300px;
           }
         }
+      }
+    }
+
+    .upload-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+
+      svg {
+        font-size: 2rem;
+        color: rgba(color.$light, 0.7);
+        cursor: pointer;
       }
     }
 

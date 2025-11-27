@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { CiSearch } from "react-icons/ci";
 import { IoMdPerson } from "react-icons/io";
 import clientConfig from '../client.config.js';
+import { GoPlusCircle } from "react-icons/go";
 
 interface NavbarProps {
   isMenuOpen: boolean;
@@ -212,6 +213,10 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
           </div>
         </div>
 
+        <Link href="/upload" className="upload-icon">
+          <GoPlusCircle className="upload-icon-svg" />
+        </Link>
+
         {/* User Account Icon with Dropdown */}
         <div className="user-account-wrapper">
           <button 
@@ -241,7 +246,6 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
                     </div>
                   )}
                   <Link href="/profile" onClick={() => setIsUserDropdownOpen(false)}>Profile</Link>
-                  <Link href="/upload" onClick={() => setIsUserDropdownOpen(false)}>Upload</Link>
                   <Link href="/notifications" onClick={() => setIsUserDropdownOpen(false)}>Notifications</Link>
                   <Link href="/assets" onClick={() => setIsUserDropdownOpen(false)}>Assets</Link>
                   <button onClick={handleLogout} className="user-dropdown-logout">Logout</button>

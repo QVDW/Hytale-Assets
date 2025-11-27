@@ -407,11 +407,12 @@ $glow-color: rgba(139, 92, 246, 0.5);
 // Profile Page Styles
 .profile-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, $dark-bg 0%, $darker-bg 50%, #1a1a2e 100%);
+  // Background image for profile page
+  background: url('/pfp-bg.jpg') center center / cover no-repeat fixed;
   position: relative;
   overflow: hidden;
 
-  // Magical background effects
+  // Semi-transparent primary color overlay
   &::before {
     content: '';
     position: absolute;
@@ -419,46 +420,27 @@ $glow-color: rgba(139, 92, 246, 0.5);
     left: 0;
     right: 0;
     bottom: 0;
-    background: 
-      radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 40% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 50%);
+    background: rgba(color.$primary, 0.9);
     pointer-events: none;
-    animation: pulse 8s ease-in-out infinite;
   }
 
-  // Floating particles effect
+  // Disable old particle effects so only the image + overlay are visible
   &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: 
-      radial-gradient(2px 2px at 20% 30%, rgba(139, 92, 246, 0.3), transparent),
-      radial-gradient(2px 2px at 60% 70%, rgba(59, 130, 246, 0.3), transparent),
-      radial-gradient(1px 1px at 50% 50%, rgba(236, 72, 153, 0.3), transparent),
-      radial-gradient(1px 1px at 80% 10%, rgba(6, 182, 212, 0.3), transparent),
-      radial-gradient(2px 2px at 90% 40%, rgba(139, 92, 246, 0.2), transparent),
-      radial-gradient(1px 1px at 33% 60%, rgba(59, 130, 246, 0.2), transparent),
-      radial-gradient(1px 1px at 66% 20%, rgba(236, 72, 153, 0.2), transparent);
-    background-size: 200% 200%;
-    animation: float 20s ease-in-out infinite;
-    pointer-events: none;
-    opacity: 0.6;
+    content: none;
   }
 }
 
 .profile-container {
   display: flex;
-  height: 100vh;
+  min-height: 100vh;
+  max-width: 1800px;
   margin: 0 auto;
   padding: 2rem;
   position: relative;
   z-index: 1;
-  padding-top: 100px;
-
+  padding-top: 90px;
+  gap: 2rem;
+  align-items: flex-start;
 }
 
 .profile-loading-container {
@@ -473,15 +455,17 @@ $glow-color: rgba(139, 92, 246, 0.5);
   padding: 1rem 1.5rem;
   flex-direction: column;
   width: 20rem;
-  background: rgba(color.$primary, 0.3);
-  gap: 0.5rem;
+  background: rgba(color.$dark, 0.4);
   z-index: 1;
+  align-self: flex-start;
+  min-height: calc(100vh - 125px);
   
   .profile-header-settings{
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     top: 0;
     right: 0;
+    width: 100%;
 
     svg{
       font-size: 1.5rem;
@@ -499,9 +483,46 @@ $glow-color: rgba(139, 92, 246, 0.5);
   justify-content: center;
   position: relative;
   flex-shrink: 0;
+}
 
-  .profile-picture-large {
+.profile-avatar-progress {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .profile-avatar-image {
+    position: absolute;
+    width: 150px;
+    height: 150px;
     border-radius: 50%;
+    overflow: hidden;
+
+    .profile-picture-large {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+  }
+
+  .profile-progress-ring-bg,
+  .profile-progress-ring-bar {
+    fill: transparent;
+    stroke-width: 8;
+  }
+
+  .profile-progress-ring-bg {
+    stroke: rgba(255, 255, 255, 0.15);
+  }
+
+  .profile-progress-ring-bar {
+    stroke: color.$secondary;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+    transition: stroke-dashoffset 0.4s ease;
   }
 }
 
@@ -509,20 +530,20 @@ $glow-color: rgba(139, 92, 246, 0.5);
   display: flex;
   justify-content: center;
   flex: 1;
+  max-width: 100%;
 }
 
 .profile-username {
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   font-size: 2rem;
   font-weight: 700;
   color: color.$secondary;
   margin: 0;
-}
-
-.profile-assets-section {
-  width: 100%;
-  padding: 2rem 0;
-  position: relative;
-  z-index: 1;
 }
 
 .profile-section-title {
@@ -535,19 +556,76 @@ $glow-color: rgba(139, 92, 246, 0.5);
   text-align: center;
 }
 
-.profile-assets-container {
-  min-height: 300px;
+.profile-follow-section-container {
   display: flex;
+  gap: 1rem;
   align-items: center;
-  justify-content: center;
-  padding: 2rem;
+  justify-content: space-around;
+
+  .profile-follow-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+  }
+
+  .profile-follow-item-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: rgba(color.$light, 0.7);
+    margin: 0;
+  }
+
+  .profile-follow-item-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(color.$light, 0.7);
+    margin: 0;
+  }
 }
 
-.profile-assets-placeholder {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 1.2rem;
-  text-align: center;
-  font-style: italic;
+.profile-stats-section {
+  display: flex;
+  gap: 1rem;
+  margin: 2rem 0;
+
+  .profile-stats-container {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+
+    .profile-stats-item {
+      width: 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: center;
+
+      .profile-stats-item-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: rgba(color.$light, 0.7);
+        margin: 0;
+      }
+
+      .profile-stats-item-value {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 55px;
+        height: 55px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: color.$secondary;
+        padding: 0.5rem;
+        margin: 0;
+        border-radius: 50%;
+        border: 2px solid color.$secondary;
+      }
+    }
+  }
 }
 
 // User Dropdown Styles (for Navbar)
@@ -635,10 +713,106 @@ $glow-color: rgba(139, 92, 246, 0.5);
 
 .profile-badge-container {
   display: flex;
-  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
   position: relative;
   flex-shrink: 0;
+  width: 100%;
+  flex-wrap: wrap;
+  
+  img {
+    width: 65px;
+    height: 65px;
+    object-fit: cover;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-bottom: 1rem;
+  }
 }
+
+.profile-assets-section {
+  width: 100%;
+  background: rgba(color.$dark, 0.4);
+  padding: 2rem 0;
+  position: relative;
+  z-index: 1;
+
+  .profile-assets-container {
+    min-height: auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2rem;
+    align-items: stretch;
+    padding: 0 2rem;
+  }
+
+  .profile-assets-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    position: relative;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 16px;
+    box-shadow: 0 0 5px rgba(color.$light, 0.8);
+    padding: 1rem;
+    background: rgba(color.$dark, 0.4);
+    border: 1px solid rgba(color.$light, 0.1);
+    width: 100%;
+    height: 25vw;
+    max-height: 500px;
+    line-height: 1;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 16px;
+    }
+
+    .profile-assets-item-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: color.$secondary;
+      margin-top: 0.2rem;
+    }
+
+    .profile-assets-item-description {
+      font-size: 1rem;
+      font-weight: 400;
+      color: rgba(color.$light, 0.7);
+      margin: 0;
+      max-height: 33px;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+    }
+    
+    .profile-assets-item-buttons {
+      width: 100%;
+      margin-top: 0.5rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: space-around;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .profile-assets-item-button {
+      background: color.$secondary;
+      color: color.$dark;
+      width: 30%;
+      padding: 0.5rem 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      cursor: pointer;
+    }
+  }
+}
+
+
 // Responsive Design
 @media screen and (max-width: 768px) {
   .auth-card {
@@ -684,6 +858,10 @@ $glow-color: rgba(139, 92, 246, 0.5);
   .profile-section-title {
     font-size: 1.5rem;
   }
+
+  .profile-assets-section .profile-assets-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media screen and (max-width: 480px) {
@@ -728,9 +906,10 @@ $glow-color: rgba(139, 92, 246, 0.5);
     font-size: 1.25rem;
   }
 
-  .profile-assets-container {
+  .profile-assets-section .profile-assets-container {
     min-height: 200px;
     padding: 1rem;
+    grid-template-columns: 1fr;
   }
 }
 
