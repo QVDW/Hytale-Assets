@@ -16,10 +16,26 @@ interface UserData {
     profile_picture: string;
 }
 
+interface Asset {
+    asset_id: string;
+    title: string;
+    description: string;
+    preview_url: string | null;
+    file_url: string;
+    download_count: number;
+    upload_date: string;
+    category: {
+        category_id: string;
+        name: string;
+    };
+}
+
 export default function ProfilePage() {
     const router = useRouter();
     const [user, setUser] = useState<UserData | null>(null);
+    const [assets, setAssets] = useState<Asset[]>([]);
     const [loading, setLoading] = useState(true);
+    const [assetsLoading, setAssetsLoading] = useState(true);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     // Placeholder progress value for profile level
@@ -74,6 +90,33 @@ export default function ProfilePage() {
 
         fetchUser();
     }, [router]);
+
+    useEffect(() => {
+        const fetchAssets = async () => {
+            if (!user?.user_id) return;
+
+            try {
+                const response = await fetch(`/api/assets/user/${user.user_id}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    setAssets(data.assets || []);
+                } else {
+                    console.error("Failed to fetch assets");
+                    setAssets([]);
+                }
+            } catch (error) {
+                console.error("Error fetching assets:", error);
+                setAssets([]);
+            } finally {
+                setAssetsLoading(false);
+            }
+        };
+
+        if (user?.user_id) {
+            fetchAssets();
+        }
+    }, [user]);
 
     if (loading) {
         return (
@@ -168,7 +211,7 @@ export default function ProfilePage() {
                             </div>
                             <div className="profile-stats-item">
                                 <h3 className="profile-stats-item-title">Assets</h3>
-                                <p className="profile-stats-item-value">32</p>
+                                <p className="profile-stats-item-value">{assets.length}</p>
                             </div>
                             <div className="profile-stats-item">
                                 <h3 className="profile-stats-item-title">Reviews</h3>
@@ -194,198 +237,79 @@ export default function ProfilePage() {
 
                 <div className="profile-assets-section">
                     <div className="profile-assets-container">
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
+                        {assetsLoading ? (
+                            <div className="profile-assets-loading">
+                                <div className="loading-spinner">Loading assets...</div>
                             </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
+                        ) : assets.length === 0 ? (
+                            <div className="profile-assets-empty">
+                                <p>No assets uploaded yet.</p>
                             </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="profile-assets-item">
-                            <Image src="/asset-thumbnails/essentials.jpg" alt="Asset 1" width={300} height={300} />
-                            <h3 className="profile-assets-item-title">Asset 1</h3>
-                            <p className="profile-assets-item-description">Description of Asset 1 long text to test the description text overflow and see how it looks lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-                            <div className="profile-assets-item-buttons">
-                                <button className="profile-assets-item-button">
-                                    <FaEye />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaDownload />
-                                </button>
-                                <button className="profile-assets-item-button">
-                                    <FaEdit />
-                                </button>
-                            </div>
-                        </div>
+                        ) : (
+                            assets.map((asset) => (
+                                <div key={asset.asset_id} className="profile-assets-item">
+                                    <Image 
+                                        src={asset.preview_url || "/asset-thumbnails/essentials.jpg"} 
+                                        alt={asset.title} 
+                                        width={300} 
+                                        height={300}
+                                        onError={(e) => {
+                                            // Fallback to default image if preview fails to load
+                                            e.currentTarget.src = "/asset-thumbnails/essentials.jpg";
+                                        }}
+                                    />
+                                    <h3 className="profile-assets-item-title">{asset.title}</h3>
+                                    <p className="profile-assets-item-description">{asset.description}</p>
+                                    <div className="profile-assets-item-buttons">
+                                        <button 
+                                            className="profile-assets-item-button"
+                                            onClick={() => router.push(`/assets/${asset.asset_id}`)}
+                                            title="View Asset"
+                                        >
+                                            <FaEye />
+                                        </button>
+                                        <button 
+                                            className="profile-assets-item-button"
+                                            onClick={async () => {
+                                                try {
+                                                    const token = localStorage.getItem("userToken");
+                                                    const headers: HeadersInit = {};
+                                                    
+                                                    if (token) {
+                                                        headers["Authorization"] = `Bearer ${token}`;
+                                                    }
+
+                                                    const response = await fetch(`/api/assets/${asset.asset_id}/download`, {
+                                                        method: "POST",
+                                                        headers
+                                                    });
+
+                                                    if (!response.ok) {
+                                                        throw new Error("Download failed");
+                                                    }
+
+                                                    const data = await response.json();
+                                                    window.open(data.file_url, "_blank");
+                                                } catch (error) {
+                                                    console.error("Error downloading asset:", error);
+                                                    alert("Failed to download asset. Please try again.");
+                                                }
+                                            }}
+                                            title="Download Asset"
+                                        >
+                                            <FaDownload />
+                                        </button>
+                                        <button 
+                                            className="profile-assets-item-button"
+                                            onClick={() => router.push(`/assets/${asset.asset_id}`)}
+                                            title="Edit Asset"
+                                        >
+                                            <FaEdit />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>

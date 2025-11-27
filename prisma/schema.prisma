@@ -180,10 +180,229 @@ model UserAccount {
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
   
+  // Asset relations
+  uploadedAssets Asset[]
+  downloads      Download[]
+  likes          Like[]
+  reviews        Review[]
+  favorites      UserFavorite[]
+  reports        AssetReport[]
+  
   @@index([username])
   @@index([email])
   @@index([user_role])
   @@index([status])
   @@map("user_accounts")
+}
+
+enum AssetStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ReviewStatus {
+  active
+  removed
+}
+
+enum ReportStatus {
+  open
+  reviewed
+  resolved
+}
+
+enum OverviewSectionType {
+  image
+  youtube
+  text
+}
+
+model Category {
+  category_id        String     @id @default(cuid()) @map("category_id")
+  name               String
+  parent_category_id String?    @map("parent_category_id")
+  description        String?
+  icon_url           String?    @map("icon_url")
+  sort_order         Int        @default(0) @map("sort_order")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  
+  // Self-referential relationship for parent/child categories
+  parent             Category?  @relation("CategoryHierarchy", fields: [parent_category_id], references: [category_id], onDelete: SetNull)
+  children           Category[] @relation("CategoryHierarchy")
+  
+  // Asset relation
+  assets             Asset[]
+  
+  @@index([parent_category_id])
+  @@index([sort_order])
+  @@map("categories")
+}
+
+model Asset {
+  asset_id       String      @id @default(cuid()) @map("asset_id")
+  uploader_id    String      @map("uploader_id")
+  category_id    String      @map("category_id")
+  title          String
+  description    String
+  file_url       String      @map("file_url")
+  preview_url    String?     @map("preview_url")
+  version        String      @default("1.0.0")
+  upload_date    DateTime    @default(now()) @map("upload_date")
+  last_update    DateTime    @updatedAt @map("last_update")
+  download_count Int         @default(0) @map("download_count")
+  tags           String[]
+  status         AssetStatus @default(approved)
+  compatibility  String?     // Game version compatibility
+  
+  // Relations
+  uploader       UserAccount @relation(fields: [uploader_id], references: [user_id], onDelete: Cascade)
+  category       Category    @relation(fields: [category_id], references: [category_id], onDelete: Restrict)
+  versions       AssetVersion[]
+  downloads      Download[]
+  likes          Like[]
+  reviews        Review[]
+  favorites      UserFavorite[]
+  reports        AssetReport[]
+  metadata       AssetMetadata[]
+  overviewSections AssetOverviewSection[]
+  
+  @@index([uploader_id])
+  @@index([category_id])
+  @@index([status])
+  @@index([upload_date(sort: Desc)])
+  @@index([download_count(sort: Desc)])
+  @@map("assets")
+}
+
+model AssetVersion {
+  version_id    String   @id @default(cuid()) @map("version_id")
+  asset_id      String   @map("asset_id")
+  version_number String  @map("version_number")
+  file_url      String   @map("file_url") // For plugins: GitHub release link
+  changelog     String?
+  upload_date   DateTime @default(now()) @map("upload_date")
+  
+  asset         Asset    @relation(fields: [asset_id], references: [asset_id], onDelete: Cascade)
+  
+  @@index([asset_id])
+  @@index([upload_date(sort: Desc)])
+  @@map("asset_versions")
+}
+
+model Download {
+  download_id   String     @id @default(cuid()) @map("download_id")
+  user_id       String     @map("user_id")
+  asset_id      String     @map("asset_id")
+  download_date DateTime   @default(now()) @map("download_date")
+  ip_address    String?    @map("ip_address")
+  
+  user          UserAccount @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  asset         Asset       @relation(fields: [asset_id], references: [asset_id], onDelete: Cascade)
+  
+  @@index([user_id])
+  @@index([asset_id])
+  @@index([download_date(sort: Desc)])
+  @@map("downloads")
+}
+
+model Like {
+  like_id   String   @id @default(cuid()) @map("like_id")
+  user_id   String   @map("user_id")
+  asset_id  String   @map("asset_id")
+  liked_at DateTime @default(now()) @map("liked_at")
+  
+  user      UserAccount @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  asset     Asset       @relation(fields: [asset_id], references: [asset_id], onDelete: Cascade)
+  
+  @@unique([user_id, asset_id])
+  @@index([asset_id])
+  @@index([liked_at(sort: Desc)])
+  @@map("likes")
+}
+
+model Review {
+  review_id   String       @id @default(cuid()) @map("review_id")
+  user_id     String       @map("user_id")
+  asset_id    String       @map("asset_id")
+  rating      Int          // 1-5
+  title       String?
+  review_text String       @map("review_text")
+  review_date DateTime     @default(now()) @map("review_date")
+  status      ReviewStatus @default(active)
+  
+  user        UserAccount  @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  asset       Asset        @relation(fields: [asset_id], references: [asset_id], onDelete: Cascade)
+  
+  @@index([asset_id])
+  @@index([user_id])
+  @@index([rating])
+  @@index([review_date(sort: Desc)])
+  @@index([status])
+  @@map("reviews")
+}
+
+model UserFavorite {
+  favorite_id  String   @id @default(cuid()) @map("favorite_id")
+  user_id      String   @map("user_id")
+  asset_id     String   @map("asset_id")
+  favorited_at DateTime @default(now()) @map("favorited_at")
+  
+  user         UserAccount @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  asset        Asset       @relation(fields: [asset_id], references: [asset_id], onDelete: Cascade)
+  
+  @@unique([user_id, asset_id])
+  @@index([user_id])
+  @@index([asset_id])
+  @@index([favorited_at(sort: Desc)])
+  @@map("user_favorites")
+}
+
+model AssetReport {
+  report_id   String       @id @default(cuid()) @map("report_id")
+  user_id     String       @map("user_id")
+  asset_id    String       @map("asset_id")
+  reason      String
+  report_date DateTime     @default(now()) @map("report_date")
+  status      ReportStatus @default(open)
+  
+  user        UserAccount  @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  asset       Asset        @relation(fields: [asset_id], references: [asset_id], onDelete: Cascade)
+  
+  @@index([asset_id])
+  @@index([user_id])
+  @@index([status])
+  @@index([report_date(sort: Desc)])
+  @@map("asset_reports")
+}
+
+model AssetMetadata {
+  metadata_id String   @id @default(cuid()) @map("metadata_id")
+  asset_id    String   @map("asset_id")
+  key         String
+  value       String   // JSON/text
+  
+  asset       Asset    @relation(fields: [asset_id], references: [asset_id], onDelete: Cascade)
+  
+  @@index([asset_id])
+  @@index([key])
+  @@map("asset_metadata")
+}
+
+model AssetOverviewSection {
+  section_id   String              @id @default(cuid()) @map("section_id")
+  asset_id     String              @map("asset_id")
+  section_type OverviewSectionType @map("section_type")
+  content      String              // Image URL, YouTube URL, or text content
+  order        Int                 @default(0) // For ordering sections
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+  
+  asset        Asset               @relation(fields: [asset_id], references: [asset_id], onDelete: Cascade)
+  
+  @@index([asset_id])
+  @@index([asset_id, order])
+  @@map("asset_overview_sections")
 }
 
