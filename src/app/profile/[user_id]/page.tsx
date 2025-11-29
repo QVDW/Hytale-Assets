@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
-import Navbar from "../../../components/Navbar";
-import "../../styles/auth.scss";
+import Navbar from "../../../../components/Navbar";
+import "../../../styles/auth.scss";
 import { BsThreeDots } from "react-icons/bs";
 import { FaDownload, FaEye } from "react-icons/fa";
 import { FaEdit } from "react-icons/fa";
@@ -14,6 +14,7 @@ interface UserData {
     user_id: string;
     username: string;
     profile_picture: string;
+    user_role?: string;
 }
 
 interface Asset {
@@ -30,13 +31,22 @@ interface Asset {
     };
 }
 
-export default function ProfilePage() {
+export default function UserProfilePage() {
     const router = useRouter();
+    const params = useParams();
+    const user_id = params?.user_id as string;
+    
     const [user, setUser] = useState<UserData | null>(null);
+    const [currentUser, setCurrentUser] = useState<UserData | null>(null);
     const [assets, setAssets] = useState<Asset[]>([]);
     const [loading, setLoading] = useState(true);
     const [assetsLoading, setAssetsLoading] = useState(true);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    
+    // Check if current user is the profile owner or admin
+    const isOwner = currentUser?.user_id === user_id;
+    const isAdmin = currentUser?.user_role === "admin";
+    const canEditAssets = isOwner || isAdmin;
 
     // Placeholder progress value for profile level
     const progress = 70;
@@ -48,25 +58,13 @@ export default function ProfilePage() {
 
     useEffect(() => {
         const fetchUser = async () => {
-            if (typeof window === "undefined") return;
-
-            const token = localStorage.getItem("userToken");
-
-            if (!token) {
-                router.push("/login");
-                return;
-            }
+            if (!user_id) return;
 
             try {
-                const response = await fetch("/api/user-auth/me", {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
-                });
-
-                if (response.status === 401) {
-                    localStorage.removeItem("userToken");
-                    router.push("/login");
+                const response = await fetch(`/api/user-auth/profile/${user_id}`);
+                
+                if (response.status === 404) {
+                    router.push("/404");
                     return;
                 }
 
@@ -82,21 +80,49 @@ export default function ProfilePage() {
                 });
             } catch (error) {
                 console.error("Error fetching user:", error);
-                router.push("/login");
+                router.push("/404");
             } finally {
                 setLoading(false);
             }
         };
 
+        const fetchCurrentUser = async () => {
+            if (typeof window === "undefined") return;
+
+            const token = localStorage.getItem("userToken");
+            if (!token) return;
+
+            try {
+                const response = await fetch("/api/user-auth/me", {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    setCurrentUser({
+                        user_id: userData.user_id,
+                        username: userData.username,
+                        profile_picture: userData.profile_picture,
+                        user_role: userData.user_role
+                    });
+                }
+            } catch (error) {
+                console.error("Error fetching current user:", error);
+            }
+        };
+
         fetchUser();
-    }, [router]);
+        fetchCurrentUser();
+    }, [user_id, router]);
 
     useEffect(() => {
         const fetchAssets = async () => {
-            if (!user?.user_id) return;
+            if (!user_id) return;
 
             try {
-                const response = await fetch(`/api/assets/user/${user.user_id}`);
+                const response = await fetch(`/api/assets/user/${user_id}`);
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -113,10 +139,10 @@ export default function ProfilePage() {
             }
         };
 
-        if (user?.user_id) {
+        if (user_id) {
             fetchAssets();
         }
-    }, [user]);
+    }, [user_id]);
 
     if (loading) {
         return (
@@ -187,22 +213,6 @@ export default function ProfilePage() {
                             <h1 className="profile-username">{user.username}</h1>
                         </div>
                     </div>
-                    {/* <div className="profile-level-section">
-                        <h2 className="profile-level-section-title">Level</h2>
-                        <div className="profile-level-container">
-                            <p className="profile-level-text">1</p>
-                        </div>
-                    </div> */}
-                    {/* <div className="profile-follow-section-container">
-                        <div className="profile-follow-section">
-                            <h3 className="profile-follow-item-title">Followers</h3>
-                            <p className="profile-follow-item-value">100</p>
-                        </div>
-                        <div className="profile-follow-section">
-                            <h3 className="profile-follow-item-title">Following</h3>
-                            <p className="profile-follow-item-value">100</p>
-                        </div>
-                    </div> */}
                     <div className="profile-stats-section">
                         <div className="profile-stats-container">
                         <div className="profile-stats-item">
@@ -260,7 +270,7 @@ export default function ProfilePage() {
                                     />
                                     <h3 className="profile-assets-item-title">{asset.title}</h3>
                                     <p className="profile-assets-item-description">{asset.description}</p>
-                                    <div className="profile-assets-item-buttons">
+                                    <div className={`profile-assets-item-buttons ${isOwner ? 'profile-assets-item-buttons-owner' : 'profile-assets-item-buttons-guest'}`}>
                                         <button 
                                             className="profile-assets-item-button"
                                             onClick={() => router.push(`/assets/${asset.asset_id}`)}
@@ -299,13 +309,15 @@ export default function ProfilePage() {
                                         >
                                             <FaDownload />
                                         </button>
-                                        <button 
-                                            className="profile-assets-item-button"
-                                            onClick={() => router.push(`/assets/${asset.asset_id}`)}
-                                            title="Edit Asset"
-                                        >
-                                            <FaEdit />
-                                        </button>
+                                        {canEditAssets && (
+                                            <button 
+                                                className="profile-assets-item-button"
+                                                onClick={() => router.push(`/assets/${asset.asset_id}`)}
+                                                title="Edit Asset"
+                                            >
+                                                <FaEdit />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))

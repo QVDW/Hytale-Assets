@@ -245,7 +245,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
                       <span className="user-dropdown-username">{userData.username}</span>
                     </div>
                   )}
-                  <Link href="/profile" onClick={() => setIsUserDropdownOpen(false)}>Profile</Link>
+                  <Link href={`/profile/${userData?.user_id || ''}`} onClick={() => setIsUserDropdownOpen(false)}>Profile</Link>
                   <Link href="/notifications" onClick={() => setIsUserDropdownOpen(false)}>Notifications</Link>
                   <Link href="/assets" onClick={() => setIsUserDropdownOpen(false)}>Assets</Link>
                   <button onClick={handleLogout} className="user-dropdown-logout">Logout</button>
@@ -281,7 +281,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
             <Link href="/json-files" className="menu-quote-button">Json Files</Link>
             {isLoggedIn ? (
               <>
-                <Link href="/profile" className={pathname === '/profile' ? 'active' : ''}>Profile</Link>
+                <Link href={`/profile/${userData?.user_id || ''}`} className={pathname?.startsWith('/profile/') ? 'active' : ''}>Profile</Link>
                 <button onClick={handleLogout} className="menu-logout-button">Logout</button>
               </>
             ) : (

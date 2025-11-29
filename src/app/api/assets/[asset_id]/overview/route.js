@@ -78,7 +78,11 @@ function validateSectionContent(type, content) {
 
     switch (type) {
         case "image":
-            // Basic URL validation
+            // Accept both absolute URLs and relative paths
+            if (content.startsWith("/") || content.startsWith("http://") || content.startsWith("https://")) {
+                return { valid: true };
+            }
+            // Try to validate as URL
             try {
                 new URL(content);
                 return { valid: true };

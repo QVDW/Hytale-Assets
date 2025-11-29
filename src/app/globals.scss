@@ -355,6 +355,50 @@
   }
 }
 
+// Global Scrollbar Styles (Dark Mode with Border Radius)
+* {
+  // Firefox
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.5) rgba(0, 0, 0, 0.2);
+}
+
+// Webkit browsers (Chrome, Safari, Edge)
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.5);
+  border-radius: 10px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  transition: background 0.3s ease;
+
+  &:hover {
+    background: rgba(139, 92, 246, 0.7);
+  }
+
+  &:active {
+    background: rgba(139, 92, 246, 0.9);
+  }
+}
+
+// Horizontal scrollbar
+*::-webkit-scrollbar-thumb:horizontal {
+  border-radius: 10px;
+}
+
+// Corner (where vertical and horizontal scrollbars meet)
+*::-webkit-scrollbar-corner {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
 
 .container{
   margin: 0 auto;

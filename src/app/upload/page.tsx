@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../../../components/Navbar";
-import "../../styles/upload.scss";
+import ImageCropper from "../../../components/ImageCropper";
+import "../../styles/auth.scss";
 import { FaUpload, FaFile, FaImage, FaTag, FaCheck, FaArrowLeft, FaArrowRight, FaGithub } from "react-icons/fa";
 
 interface Category {
@@ -41,6 +42,8 @@ export default function UploadPage() {
     const [mainFile, setMainFile] = useState<File | null>(null);
     const [previewFile, setPreviewFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showCropper, setShowCropper] = useState(false);
+    const [tempPreviewFile, setTempPreviewFile] = useState<File | null>(null);
     
     // UI state
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -135,9 +138,29 @@ export default function UploadPage() {
                 setError("Preview must be an image (jpg, png, or webp)");
                 return;
             }
-            setPreviewFile(file);
-            const url = URL.createObjectURL(file);
-            setPreviewUrl(url);
+            // Show cropper instead of directly setting the file
+            setTempPreviewFile(file);
+            setShowCropper(true);
+        }
+    };
+
+    // Handle crop complete
+    const handleCropComplete = (croppedFile: File) => {
+        setPreviewFile(croppedFile);
+        const url = URL.createObjectURL(croppedFile);
+        setPreviewUrl(url);
+        setShowCropper(false);
+        setTempPreviewFile(null);
+    };
+
+    // Handle crop cancel
+    const handleCropCancel = () => {
+        setShowCropper(false);
+        setTempPreviewFile(null);
+        // Reset the file input
+        const fileInput = document.getElementById('preview') as HTMLInputElement;
+        if (fileInput) {
+            fileInput.value = '';
         }
     };
 
@@ -296,40 +319,42 @@ export default function UploadPage() {
         return (
             <div className="upload-page">
                 <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-                <div className="upload-container">
-                    <div className="upload-card success-card">
-                        <div className="success-icon">✓</div>
-                        <h2 className="upload-title">Upload Successful!</h2>
-                        <p className="upload-subtitle">Your asset has been uploaded successfully.</p>
-                        <div className="upload-actions">
-                            <button 
-                                className="upload-button"
-                                onClick={() => {
-                                    // Reset form
-                                    setTitle("");
-                                    setDescription("");
-                                    setSelectedCategory("");
-                                    setSelectedSubcategory("");
-                                    setVersion("1.0.0");
-                                    setCompatibility("");
-                                    setTags("");
-                                    setGithubUrl("");
-                                    setMainFile(null);
-                                    setPreviewFile(null);
-                                    setPreviewUrl(null);
-                                    setCurrentStep(1);
-                                    setSuccess(false);
-                                    setError("");
-                                }}
-                            >
-                                Upload Another Asset
-                            </button>
-                            <button 
-                                className="upload-button secondary"
-                                onClick={() => router.push("/")}
-                            >
-                                Go to Home
-                            </button>
+                <div className="upload-wrapper">
+                    <div className="upload-container">
+                        <div className="upload-card success-card">
+                            <div className="success-icon">✓</div>
+                            <h2 className="upload-title">Upload Successful!</h2>
+                            <p className="upload-subtitle">Your asset has been uploaded successfully.</p>
+                            <div className="upload-actions">
+                                <button 
+                                    className="upload-button"
+                                    onClick={() => {
+                                        // Reset form
+                                        setTitle("");
+                                        setDescription("");
+                                        setSelectedCategory("");
+                                        setSelectedSubcategory("");
+                                        setVersion("1.0.0");
+                                        setCompatibility("");
+                                        setTags("");
+                                        setGithubUrl("");
+                                        setMainFile(null);
+                                        setPreviewFile(null);
+                                        setPreviewUrl(null);
+                                        setCurrentStep(1);
+                                        setSuccess(false);
+                                        setError("");
+                                    }}
+                                >
+                                    Upload Another Asset
+                                </button>
+                                <button 
+                                    className="upload-button secondary"
+                                    onClick={() => router.push("/")}
+                                >
+                                    Go to Home
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -340,12 +365,13 @@ export default function UploadPage() {
     return (
         <div className="upload-page">
             <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-            <div className="upload-container">
-                <div className="upload-card">
-                    <div className="upload-header">
-                        <h1 className="upload-title">Upload Asset</h1>
-                        <p className="upload-subtitle">Share your creation with the community</p>
-                    </div>
+            <div className="upload-wrapper">
+                <div className="upload-container">
+                    <div className="upload-card">
+                        <div className="upload-header">
+                            <h1 className="upload-title">Upload Asset</h1>
+                            <p className="upload-subtitle">Share your creation with the community</p>
+                        </div>
 
                     {/* Progress Steps */}
                     <div className="upload-steps">
@@ -580,8 +606,18 @@ export default function UploadPage() {
                             </div>
                         </div>
                     )}
+                    </div>
                 </div>
             </div>
+            
+            {showCropper && tempPreviewFile && (
+                <ImageCropper
+                    imageFile={tempPreviewFile}
+                    onCropComplete={handleCropComplete}
+                    onCancel={handleCropCancel}
+                    aspectRatio={1}
+                />
+            )}
         </div>
     );
 }

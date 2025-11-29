@@ -6,11 +6,12 @@ interface ImageCropperProps {
   imageFile: File;
   onCropComplete: (croppedFile: File) => void;
   onCancel: () => void;
+  aspectRatio?: number;
 }
 
-const ASPECT_RATIO = 16 / 9;
+const DEFAULT_ASPECT_RATIO = 16 / 9;
 
-export default function ImageCropper({ imageFile, onCropComplete, onCancel }: ImageCropperProps) {
+export default function ImageCropper({ imageFile, onCropComplete, onCancel, aspectRatio = DEFAULT_ASPECT_RATIO }: ImageCropperProps) {
   const [crop, setCrop] = useState<Crop>();
   const [imageSrc, setImageSrc] = useState<string>('');
   const imgRef = useRef<HTMLImageElement>(null);
@@ -35,7 +36,7 @@ export default function ImageCropper({ imageFile, onCropComplete, onCancel }: Im
           unit: '%',
           width: 100,
         },
-        ASPECT_RATIO,
+        aspectRatio,
         width,
         height
       ),
@@ -54,7 +55,7 @@ export default function ImageCropper({ imageFile, onCropComplete, onCancel }: Im
     const scaleY = imgRef.current.naturalHeight / imgRef.current.height;
     
     const outputWidth = completedCrop.width * scaleX;
-    const outputHeight = outputWidth / ASPECT_RATIO;
+    const outputHeight = outputWidth / aspectRatio;
     
     canvas.width = outputWidth;
     canvas.height = outputHeight;
@@ -94,7 +95,7 @@ export default function ImageCropper({ imageFile, onCropComplete, onCancel }: Im
     <div className="image-cropper-container">
       <div className="image-cropper-modal">
         <h3>Crop Image</h3>
-        <p>Select crop area (16:9 ratio)</p>
+        <p>Select crop area ({aspectRatio === 1 ? '1:1' : aspectRatio === 16/9 ? '16:9' : `${aspectRatio.toFixed(2)}:1`} ratio)</p>
         
         {imageSrc && (
           <div className="crop-wrapper">
@@ -102,7 +103,7 @@ export default function ImageCropper({ imageFile, onCropComplete, onCancel }: Im
               crop={crop}
               onChange={(c) => setCrop(c)}
               onComplete={(c) => setCompletedCrop(c)}
-              aspect={ASPECT_RATIO}
+              aspect={aspectRatio}
               className="react-crop"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

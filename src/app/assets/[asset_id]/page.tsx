@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import Navbar from "../../../../components/Navbar";
 import "../../../styles/auth.scss";
-import { FaDownload, FaEdit, FaStar } from "react-icons/fa";
+import { FaDownload, FaEdit, FaStar, FaTrash } from "react-icons/fa";
 
 interface AssetData {
     asset_id: string;
@@ -84,7 +84,38 @@ export default function AssetDetailPage() {
         order: number;
     }>>([]);
     const [isSavingOverview, setIsSavingOverview] = useState(false);
+    const [uploadingImageIndex, setUploadingImageIndex] = useState<number | null>(null);
+    const [relatedAssets, setRelatedAssets] = useState<Array<{
+        asset_id: string;
+        title: string;
+        description: string;
+        preview_url: string | null;
+        download_count: number;
+        category: {
+            category_id: string;
+            name: string;
+        };
+        uploader: {
+            user_id: string;
+            username: string;
+            profile_picture: string;
+        };
+    }>>([]);
+    const [relatedAssetsLoading, setRelatedAssetsLoading] = useState(false);
     const editMenuRef = useRef<HTMLDivElement>(null);
+    
+    // Edit asset details state
+    const [isEditingAsset, setIsEditingAsset] = useState(false);
+    const [editTitle, setEditTitle] = useState("");
+    const [editDescription, setEditDescription] = useState("");
+    const [editCategory, setEditCategory] = useState("");
+    const [editVersion, setEditVersion] = useState("");
+    const [editCompatibility, setEditCompatibility] = useState("");
+    const [editTags, setEditTags] = useState("");
+    const [editPreviewFile, setEditPreviewFile] = useState<File | null>(null);
+    const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
+    const [categories, setCategories] = useState<Array<{ category_id: string; name: string; parent_category_id: string | null }>>([]);
+    const [isSavingAsset, setIsSavingAsset] = useState(false);
 
     // Close edit menu when clicking outside
     useEffect(() => {
@@ -165,6 +196,68 @@ export default function AssetDetailPage() {
         fetchUser();
     }, [asset_id, router]);
 
+    // Fetch related assets when asset is loaded
+    useEffect(() => {
+        const fetchRelatedAssets = async () => {
+            if (!asset?.category?.category_id) return;
+
+            setRelatedAssetsLoading(true);
+            try {
+                const response = await fetch(
+                    `/api/assets/category/${asset.category.category_id}?exclude=${asset_id}&limit=10`
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    setRelatedAssets(data.assets || []);
+                }
+            } catch (error) {
+                console.error("Error fetching related assets:", error);
+            } finally {
+                setRelatedAssetsLoading(false);
+            }
+        };
+
+        if (asset) {
+            fetchRelatedAssets();
+        }
+    }, [asset, asset_id]);
+
+    // Fetch categories when editing asset
+    useEffect(() => {
+        const fetchCategories = async () => {
+            if (!isEditingAsset) return;
+
+            try {
+                const response = await fetch("/api/assets/categories");
+                if (response.ok) {
+                    const data = await response.json();
+                    // Flatten hierarchical categories for dropdown
+                    const flattenCategories = (cats: any[]): any[] => {
+                        const result: any[] = [];
+                        cats.forEach(cat => {
+                            result.push({
+                                category_id: cat.category_id,
+                                name: cat.name,
+                                parent_category_id: cat.parent_category_id
+                            });
+                            if (cat.children && cat.children.length > 0) {
+                                result.push(...flattenCategories(cat.children));
+                            }
+                        });
+                        return result;
+                    };
+                    const flatCategories = data.categories ? flattenCategories(data.categories) : (data.allCategories || []);
+                    setCategories(flatCategories);
+                }
+            } catch (error) {
+                console.error("Error fetching categories:", error);
+            }
+        };
+
+        fetchCategories();
+    }, [isEditingAsset]);
+
     const handleDownload = async () => {
         if (!asset) return;
 
@@ -204,6 +297,39 @@ export default function AssetDetailPage() {
     const canEdit = () => {
         if (!asset || !user) return false;
         return asset.uploader.user_id === user.user_id || user.user_role === "admin";
+    };
+
+    const handleDeleteAsset = async () => {
+        if (!asset) return;
+
+        const confirmed = confirm(`Are you sure you want to delete "${asset.title}"? This action cannot be undone.`);
+        if (!confirmed) return;
+
+        try {
+            const token = localStorage.getItem("userToken");
+            if (!token) {
+                alert("You must be logged in to delete assets");
+                return;
+            }
+
+            const response = await fetch(`/api/assets/${asset_id}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Failed to delete asset");
+            }
+
+            // Redirect to home or user's profile after deletion
+            router.push("/");
+        } catch (error: any) {
+            console.error("Error deleting asset:", error);
+            alert(error.message || "Failed to delete asset. Please try again.");
+        }
     };
 
     const handleEditOverview = () => {
@@ -307,11 +433,180 @@ export default function AssetDetailPage() {
         setEditingSections(newSections);
     };
 
+    const handleImageUpload = async (index: number, file: File) => {
+        if (!asset) return;
+
+        // Validate file type
+        const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+        if (!allowedTypes.includes(file.type)) {
+            alert("Invalid file type. Only JPEG, PNG, and WebP images are allowed.");
+            return;
+        }
+
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            alert("File size exceeds 10MB limit.");
+            return;
+        }
+
+        setUploadingImageIndex(index);
+
+        try {
+            const token = localStorage.getItem("userToken");
+            if (!token) {
+                alert("You must be logged in to upload images");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("asset_id", asset_id);
+
+            const response = await fetch("/api/assets/overview-image", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Failed to upload image");
+            }
+
+            const data = await response.json();
+            
+            // Update section content with uploaded image URL
+            handleUpdateSection(index, "content", data.image_url);
+        } catch (error) {
+            console.error("Error uploading image:", error);
+            alert(error instanceof Error ? error.message : "Failed to upload image. Please try again.");
+        } finally {
+            setUploadingImageIndex(null);
+        }
+    };
+
     const handleEditAsset = () => {
         setIsEditMenuOpen(false);
-        // Navigate to edit page or show edit modal
-        // For now, just show alert
-        alert("Edit asset functionality coming soon!");
+        if (!asset) return;
+        
+        // Initialize form with current asset data
+        setEditTitle(asset.title);
+        setEditDescription(asset.description);
+        setEditCategory(asset.category.category_id);
+        setEditVersion(asset.version);
+        setEditCompatibility(asset.compatibility || "");
+        setEditTags(asset.tags.join(", "));
+        setEditPreviewUrl(asset.preview_url);
+        setEditPreviewFile(null);
+        setIsEditingAsset(true);
+    };
+
+    const handleCancelEditAsset = () => {
+        setIsEditingAsset(false);
+        setEditPreviewFile(null);
+    };
+
+    const handleSaveAsset = async () => {
+        if (!asset) return;
+
+        if (!editTitle.trim() || !editDescription.trim()) {
+            alert("Title and description are required");
+            return;
+        }
+
+        setIsSavingAsset(true);
+        try {
+            const token = localStorage.getItem("userToken");
+            if (!token) {
+                alert("You must be logged in to edit asset details");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("title", editTitle);
+            formData.append("description", editDescription);
+            if (editCategory) {
+                formData.append("category_id", editCategory);
+            }
+            if (editVersion) {
+                formData.append("version", editVersion);
+            }
+            if (editCompatibility) {
+                formData.append("compatibility", editCompatibility);
+            }
+            if (editTags) {
+                formData.append("tags", editTags);
+            }
+            if (editPreviewFile) {
+                formData.append("preview", editPreviewFile);
+            }
+
+            const response = await fetch(`/api/assets/${asset_id}`, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Failed to update asset");
+            }
+
+            const data = await response.json();
+            
+            // Update asset state with new data
+            setAsset(prev => prev ? {
+                ...prev,
+                title: data.asset.title,
+                description: data.asset.description,
+                preview_url: data.asset.preview_url,
+                version: data.asset.version,
+                tags: data.asset.tags,
+                compatibility: data.asset.compatibility,
+                category: data.asset.category
+            } : null);
+            
+            setIsEditingAsset(false);
+            setEditPreviewFile(null);
+        } catch (error: any) {
+            console.error("Error saving asset details:", error);
+            alert(error.message || "Failed to save asset details");
+        } finally {
+            setIsSavingAsset(false);
+        }
+    };
+
+    const handlePreviewFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Validate file type
+            const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+            if (!allowedTypes.includes(file.type)) {
+                alert("Invalid file type. Only JPEG, PNG, and WebP images are allowed.");
+                return;
+            }
+
+            // Validate file size (max 10MB)
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                alert("File size exceeds 10MB limit.");
+                return;
+            }
+
+            setEditPreviewFile(file);
+            
+            // Create preview URL
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setEditPreviewUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     if (loading) {
@@ -339,7 +634,9 @@ export default function AssetDetailPage() {
     return (
         <div className="asset-detail-page">
             <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-            <div className="asset-detail-container">
+            <div className="asset-detail-wrapper">
+                <div className="asset-detail-grid">
+                    <div className="asset-detail-container">
                 {/* Header Section */}
                 <div className="asset-detail-header">
                     <div className="asset-detail-header-image">
@@ -359,6 +656,15 @@ export default function AssetDetailPage() {
                         
                         <div className="asset-detail-meta">
                             <div className="asset-detail-meta-item">
+                                <span className="asset-detail-meta-label">Uploader:</span>
+                                <span 
+                                    className="asset-detail-meta-value asset-detail-meta-value-link" 
+                                    onClick={() => router.push(`/profile/${asset.uploader.user_id}`)}
+                                >
+                                    {asset.uploader.username}
+                                </span>
+                            </div>
+                            <div className="asset-detail-meta-item">
                                 <span className="asset-detail-meta-label">Category:</span>
                                 <span className="asset-detail-meta-value">{asset.category.name}</span>
                             </div>
@@ -370,7 +676,7 @@ export default function AssetDetailPage() {
                                 <div className="asset-detail-meta-item">
                                     <span className="asset-detail-meta-label">Rating:</span>
                                     <span className="asset-detail-meta-value">
-                                        <FaStar style={{ color: "#ffc107", marginRight: "4px" }} />
+                                        <FaStar className="asset-detail-star-icon" />
                                         {asset.averageRating.toFixed(1)} ({asset.reviews.length})
                                     </span>
                                 </div>
@@ -402,6 +708,13 @@ export default function AssetDetailPage() {
                                             </button>
                                             <button onClick={handleEditAsset}>
                                                 Edit Asset Details
+                                            </button>
+                                            <button 
+                                                onClick={handleDeleteAsset}
+                                                className="asset-detail-delete-btn"
+                                            >
+                                                <FaTrash />
+                                                Delete Asset
                                             </button>
                                         </div>
                                     )}
@@ -504,12 +817,60 @@ export default function AssetDetailPage() {
                                                             className="asset-overview-edit-textarea"
                                                             rows={6}
                                                         />
+                                                    ) : section.section_type === "image" ? (
+                                                        <div className="asset-overview-edit-image-upload">
+                                                            <input
+                                                                type="file"
+                                                                accept="image/jpeg,image/jpg,image/png,image/webp"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) {
+                                                                        handleImageUpload(index, file);
+                                                                    }
+                                                                    // Reset input
+                                                                    e.target.value = "";
+                                                                }}
+                                                                id={`image-upload-${index}`}
+                                                                className="asset-overview-edit-file-input"
+                                                                disabled={uploadingImageIndex === index}
+                                                            />
+                                                            {section.content ? (
+                                                                <div className="asset-overview-edit-image-preview-container">
+                                                                    <div className="asset-overview-edit-image-preview">
+                                                                        <img src={section.content} alt="Preview" onError={(e) => {
+                                                                            e.currentTarget.src = "/placeholder.svg";
+                                                                        }} />
+                                                                    </div>
+                                                                    <label
+                                                                        htmlFor={`image-upload-${index}`}
+                                                                        className="asset-overview-edit-upload-button"
+                                                                    >
+                                                                        {uploadingImageIndex === index ? (
+                                                                            <span>Uploading...</span>
+                                                                        ) : (
+                                                                            <span>Change Image</span>
+                                                                        )}
+                                                                    </label>
+                                                                </div>
+                                                            ) : (
+                                                                <label
+                                                                    htmlFor={`image-upload-${index}`}
+                                                                    className="asset-overview-edit-upload-button"
+                                                                >
+                                                                    {uploadingImageIndex === index ? (
+                                                                        <span>Uploading...</span>
+                                                                    ) : (
+                                                                        <span>Upload Image</span>
+                                                                    )}
+                                                                </label>
+                                                            )}
+                                                        </div>
                                                     ) : (
                                                         <input
                                                             type="text"
                                                             value={section.content}
                                                             onChange={(e) => handleUpdateSection(index, "content", e.target.value)}
-                                                            placeholder={section.section_type === "image" ? "Enter image URL..." : "Enter YouTube URL..."}
+                                                            placeholder="Enter YouTube URL..."
                                                             className="asset-overview-edit-input"
                                                         />
                                                     )}
@@ -632,7 +993,7 @@ export default function AssetDetailPage() {
                                     {asset.averageRating > 0 && (
                                         <div className="asset-reviews-summary">
                                             <div className="asset-reviews-rating">
-                                                <FaStar style={{ color: "#ffc107", fontSize: "2rem" }} />
+                                                <FaStar className="asset-reviews-star-icon" />
                                                 <span className="asset-reviews-average">{asset.averageRating.toFixed(1)}</span>
                                                 <span className="asset-reviews-count">({asset.reviews.length} reviews)</span>
                                             </div>
@@ -656,10 +1017,7 @@ export default function AssetDetailPage() {
                                                                 {[...Array(5)].map((_, i) => (
                                                                     <FaStar
                                                                         key={i}
-                                                                        style={{
-                                                                            color: i < review.rating ? "#ffc107" : "#ccc",
-                                                                            fontSize: "0.9rem"
-                                                                        }}
+                                                                        className={`asset-review-star-icon ${i < review.rating ? '' : 'asset-review-star-empty'}`}
                                                                     />
                                                                 ))}
                                                             </div>
@@ -681,7 +1039,203 @@ export default function AssetDetailPage() {
                         </div>
                     )}
                 </div>
+                    </div>
+                    
+                    {/* Related Assets Sidebar */}
+                    <div className="asset-detail-related">
+                        <h3 className="asset-detail-related-title">More {asset.category.name}</h3>
+                        {relatedAssetsLoading ? (
+                            <div className="asset-detail-related-loading">
+                                <div className="loading-spinner">Loading...</div>
+                            </div>
+                        ) : relatedAssets.length === 0 ? (
+                            <div className="asset-detail-related-empty">
+                                <p>No other {asset.category.name.toLowerCase()} available.</p>
+                            </div>
+                        ) : (
+                            <div className="asset-detail-related-list">
+                                {relatedAssets.map((relatedAsset) => (
+                                    <div 
+                                        key={relatedAsset.asset_id} 
+                                        className="asset-detail-related-item"
+                                        onClick={() => router.push(`/assets/${relatedAsset.asset_id}`)}
+                                    >
+                                        <div className="asset-detail-related-image">
+                                            <Image
+                                                src={relatedAsset.preview_url || "/asset-thumbnails/essentials.jpg"}
+                                                alt={relatedAsset.title}
+                                                width={200}
+                                                height={200}
+                                                onError={(e) => {
+                                                    e.currentTarget.src = "/asset-thumbnails/essentials.jpg";
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="asset-detail-related-info">
+                                            <h4 className="asset-detail-related-item-title">{relatedAsset.title}</h4>
+                                            <p className="asset-detail-related-item-description">
+                                                {relatedAsset.description.length > 100 
+                                                    ? relatedAsset.description.substring(0, 100) + "..." 
+                                                    : relatedAsset.description}
+                                            </p>
+                                            <div className="asset-detail-related-item-meta">
+                                                <span className="asset-detail-related-item-downloads">
+                                                    <FaDownload className="asset-version-download-icon" />
+                                                    {relatedAsset.download_count}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
+
+            {/* Edit Asset Details Modal */}
+            {isEditingAsset && (
+                <div className="asset-edit-modal-overlay" onClick={handleCancelEditAsset}>
+                    <div className="asset-edit-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="asset-edit-modal-header">
+                            <h2>Edit Asset Details</h2>
+                            <button 
+                                className="asset-edit-modal-close"
+                                onClick={handleCancelEditAsset}
+                                disabled={isSavingAsset}
+                            >
+                                ×
+                            </button>
+                        </div>
+                        
+                        <div className="asset-edit-modal-content">
+                            <div className="asset-edit-form-group">
+                                <label htmlFor="edit-title">Title *</label>
+                                <input
+                                    id="edit-title"
+                                    type="text"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    placeholder="Asset title"
+                                    disabled={isSavingAsset}
+                                />
+                            </div>
+
+                            <div className="asset-edit-form-group">
+                                <label htmlFor="edit-description">Description *</label>
+                                <textarea
+                                    id="edit-description"
+                                    value={editDescription}
+                                    onChange={(e) => setEditDescription(e.target.value)}
+                                    placeholder="Asset description"
+                                    rows={5}
+                                    disabled={isSavingAsset}
+                                />
+                            </div>
+
+                            <div className="asset-edit-form-group">
+                                <label htmlFor="edit-category">Category</label>
+                                <select
+                                    id="edit-category"
+                                    value={editCategory}
+                                    onChange={(e) => setEditCategory(e.target.value)}
+                                    disabled={isSavingAsset}
+                                >
+                                    <option value="">Select a category</option>
+                                    {categories.map((cat) => (
+                                        <option key={cat.category_id} value={cat.category_id}>
+                                            {cat.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="asset-edit-form-row">
+                                <div className="asset-edit-form-group">
+                                    <label htmlFor="edit-version">Version</label>
+                                    <input
+                                        id="edit-version"
+                                        type="text"
+                                        value={editVersion}
+                                        onChange={(e) => setEditVersion(e.target.value)}
+                                        placeholder="e.g., 1.0.0"
+                                        disabled={isSavingAsset}
+                                    />
+                                </div>
+
+                                <div className="asset-edit-form-group">
+                                    <label htmlFor="edit-compatibility">Compatibility</label>
+                                    <input
+                                        id="edit-compatibility"
+                                        type="text"
+                                        value={editCompatibility}
+                                        onChange={(e) => setEditCompatibility(e.target.value)}
+                                        placeholder="Game version"
+                                        disabled={isSavingAsset}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="asset-edit-form-group">
+                                <label htmlFor="edit-tags">Tags (comma-separated)</label>
+                                <input
+                                    id="edit-tags"
+                                    type="text"
+                                    value={editTags}
+                                    onChange={(e) => setEditTags(e.target.value)}
+                                    placeholder="tag1, tag2, tag3"
+                                    disabled={isSavingAsset}
+                                />
+                            </div>
+
+                            <div className="asset-edit-form-group">
+                                <label htmlFor="edit-preview">Thumbnail</label>
+                                <div className="asset-edit-preview-container">
+                                    {editPreviewUrl && (
+                                        <div className="asset-edit-preview-image">
+                                            <Image
+                                                src={editPreviewUrl}
+                                                alt="Preview"
+                                                width={200}
+                                                height={200}
+                                                className="asset-edit-preview-image"
+                                            />
+                                        </div>
+                                    )}
+                                    <input
+                                        id="edit-preview"
+                                        type="file"
+                                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                                        onChange={handlePreviewFileChange}
+                                        disabled={isSavingAsset}
+                                        className="asset-edit-file-input"
+                                    />
+                                    <label htmlFor="edit-preview" className="asset-edit-upload-button">
+                                        {editPreviewFile ? "Change Thumbnail" : "Upload Thumbnail"}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="asset-edit-modal-actions">
+                            <button
+                                className="asset-edit-btn cancel"
+                                onClick={handleCancelEditAsset}
+                                disabled={isSavingAsset}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="asset-edit-btn save"
+                                onClick={handleSaveAsset}
+                                disabled={isSavingAsset}
+                            >
+                                {isSavingAsset ? "Saving..." : "Save Changes"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { TbAppWindow, TbUser, TbFilterQuestion, TbSettings, TbBug, TbUserCog, TbFolder } from "react-icons/tb";
+import { TbAppWindow, TbUser, TbFilterQuestion, TbSettings, TbBug, TbUserCog, TbFolder, TbShield } from "react-icons/tb";
 import { FiMonitor } from "react-icons/fi";
 import { useEffectiveRank } from "../../hooks/useViewAs";
 import useCurrentUser from "../../hooks/useCurrentUser";
@@ -50,6 +50,10 @@ export default function AdmNavbar() {
                 <Link href="/adm/categories" className={isActive("/adm/categories")}>
                     <TbFolder />
                     <span className="tooltip">Categories</span>
+                </Link>
+                <Link href="/adm/frontend-admins" className={isActive("/adm/frontend-admins")}>
+                    <TbShield />
+                    <span className="tooltip">Frontend Admins</span>
                 </Link>
                 <Link href="/adm/settings" className={isActive("/adm/settings")}>
                     <TbSettings />
