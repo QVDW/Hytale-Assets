@@ -321,22 +321,6 @@ export default function HomeHero() {
           })}
         </div>
       </div>
-
-      {assets.length > 1 && (
-        <div className="home-hero-indicators">
-          {assets.map((asset, index) => (
-            <button
-              key={asset.asset_id}
-              type="button"
-              className={`home-hero-indicator ${
-                index === activeIndex ? "home-hero-indicator-active" : ""
-              }`}
-              onClick={() => setActiveIndex(index)}
-              aria-label={`Show slide ${index + 1}`}
-            />
-          ))}
-        </div>
-      )}
     </section>
   );
 }

@@ -5,6 +5,7 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import LogoCarousel from "../../components/LogoCarousel";
 import HomeHero from "../../components/HomeHero";
+import HomeDiscoverySection from "../../components/HomeDiscoverySection";
 import "../../src/styles/home.scss";
 import Image from "next/image";
 import Link from "next/link";
@@ -154,6 +155,10 @@ export default function Home() {
     <div>
       <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
       <HomeHero />
+
+      <main className="home-main">
+        <HomeDiscoverySection />
+      </main>
       
       <Footer ref={footerRef} className="scroll-animate" />
     </div>
