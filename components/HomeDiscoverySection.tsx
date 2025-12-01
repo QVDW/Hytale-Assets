@@ -29,7 +29,6 @@ export default function HomeDiscoverySection() {
       <div className="home-discovery-section-inner">
         <AssetRowCarousel
           title="Top 10 Most Downloaded"
-          subtitle="A rotating pick of the most downloaded assets across every category."
           assets={topAssets}
           rowId="top-10-most-downloaded"
         />

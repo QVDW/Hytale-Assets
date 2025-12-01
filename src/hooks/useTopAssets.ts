@@ -12,6 +12,7 @@ export interface DiscoveryAsset {
   description: string;
   preview_url: string | null;
   download_count: number;
+  logo_url?: string | null;
   category?: {
     category_id: string;
     name: string;

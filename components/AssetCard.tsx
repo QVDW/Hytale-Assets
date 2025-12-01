@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { DiscoveryAsset } from "../src/hooks/useTopAssets";
+import AssetTitle from "./AssetTitle";
 
 interface AssetCardProps {
   asset: DiscoveryAsset;
@@ -23,12 +24,6 @@ export default function AssetCard({ asset, index }: AssetCardProps) {
       aria-label={`View asset ${asset.title}`}
     >
       <div className="home-discovery-card-media">
-        {typeof rankNumber === "number" && (
-          <div className="home-discovery-card-rank">
-            <span>{rankNumber}</span>
-          </div>
-        )}
-
         <Image
           src={thumbnail}
           alt={asset.title}
@@ -43,18 +38,12 @@ export default function AssetCard({ asset, index }: AssetCardProps) {
 
       <div className="home-discovery-card-body">
         <h3 className="home-discovery-card-title">
-          {asset.title}
+          <AssetTitle
+            title={asset.title}
+            logoUrl={asset.logo_url}
+            visuallyHideText
+          />
         </h3>
-        <div className="home-discovery-card-meta">
-          {asset.category?.name && (
-            <span className="home-discovery-card-pill">
-              {asset.category.name}
-            </span>
-          )}
-          <span className="home-discovery-card-pill home-discovery-card-pill-subtle">
-            {asset.download_count.toLocaleString()} downloads
-          </span>
-        </div>
       </div>
     </Link>
   );

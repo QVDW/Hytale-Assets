@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Navbar from "../../../components/Navbar";
+import AssetTitle from "../../../components/AssetTitle";
 import "../../styles/auth.scss";
 import { FaDownload, FaEye } from "react-icons/fa";
 
@@ -25,6 +26,7 @@ interface Asset {
         username: string;
         profile_picture: string;
     };
+    logo_url?: string | null;
 }
 
 interface Category {
@@ -304,7 +306,13 @@ export default function AssetsPage() {
                                                     e.currentTarget.src = "/asset-thumbnails/essentials.jpg";
                                                 }}
                                             />
-                                            <h3 className="profile-assets-item-title">{asset.title}</h3>
+                                            <h3 className="profile-assets-item-title">
+                                                <AssetTitle
+                                                    title={asset.title}
+                                                    logoUrl={asset.logo_url}
+                                                    visuallyHideText
+                                                />
+                                            </h3>
                                             <p className="profile-assets-item-description">{asset.description}</p>
                                             <div className="profile-assets-item-meta">
                                                 <span className="profile-assets-item-category">{asset.category.name}</span>

@@ -42,6 +42,8 @@ export default function UploadPage() {
     const [mainFile, setMainFile] = useState<File | null>(null);
     const [previewFile, setPreviewFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
     const [showCropper, setShowCropper] = useState(false);
     const [tempPreviewFile, setTempPreviewFile] = useState<File | null>(null);
     
@@ -277,6 +279,10 @@ export default function UploadPage() {
                 formData.append("preview", previewFile);
             }
 
+            if (logoFile) {
+                formData.append("logo", logoFile);
+            }
+
             const response = await fetch("/api/assets/upload", {
                 method: "POST",
                 headers: {
@@ -341,6 +347,8 @@ export default function UploadPage() {
                                         setMainFile(null);
                                         setPreviewFile(null);
                                         setPreviewUrl(null);
+                                        setLogoFile(null);
+                                        setLogoPreviewUrl(null);
                                         setCurrentStep(1);
                                         setSuccess(false);
                                         setError("");
@@ -525,6 +533,44 @@ export default function UploadPage() {
                                 {previewUrl && (
                                     <div className="preview-image-container">
                                         <img src={previewUrl} alt="Preview" className="preview-image" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="form-group">
+                                <label htmlFor="logo">
+                                    <FaImage /> Asset Logo (PNG, optional)
+                                </label>
+                                <div className="file-upload-area">
+                                    <input
+                                        type="file"
+                                        id="logo"
+                                        accept="image/png"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                if (file.type !== "image/png") {
+                                                    setError("Logo must be a PNG image");
+                                                    return;
+                                                }
+                                                setLogoFile(file);
+                                                const url = URL.createObjectURL(file);
+                                                setLogoPreviewUrl(url);
+                                            } else {
+                                                setLogoFile(null);
+                                                setLogoPreviewUrl(null);
+                                            }
+                                        }}
+                                        className="file-input"
+                                    />
+                                    <div className="file-upload-label">
+                                        <FaUpload />
+                                        <span>{logoFile ? logoFile.name : "Click to upload logo (PNG)"}</span>
+                                    </div>
+                                </div>
+                                {logoPreviewUrl && (
+                                    <div className="preview-image-container">
+                                        <img src={logoPreviewUrl} alt="Logo preview" className="preview-image" />
                                     </div>
                                 )}
                             </div>

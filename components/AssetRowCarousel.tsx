@@ -14,7 +14,6 @@ interface AssetRowCarouselProps {
 
 export default function AssetRowCarousel({
   title,
-  subtitle,
   assets,
   rowId,
 }: AssetRowCarouselProps) {
@@ -51,11 +50,6 @@ export default function AssetRowCarousel({
           <h2 className="home-discovery-row-title">
             {title}
           </h2>
-          {subtitle && (
-            <p className="home-discovery-row-subtitle">
-              {subtitle}
-            </p>
-          )}
         </div>
 
         <div className="home-discovery-row-controls">

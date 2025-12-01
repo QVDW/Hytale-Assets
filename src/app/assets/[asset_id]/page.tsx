@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import Navbar from "../../../../components/Navbar";
+import AssetTitle from "../../../../components/AssetTitle";
 import "../../../styles/auth.scss";
 import { FaDownload, FaEdit, FaStar, FaTrash, FaArrowUp, FaArrowDown } from "react-icons/fa";
 
@@ -55,6 +56,7 @@ interface AssetData {
     }>;
     screenshots?: string[];
     isPromoted?: boolean;
+    logo_url?: string | null;
 }
 
 interface UserData {
@@ -93,6 +95,7 @@ export default function AssetDetailPage() {
         description: string;
         preview_url: string | null;
         download_count: number;
+        logo_url?: string | null;
         category: {
             category_id: string;
             name: string;
@@ -119,6 +122,8 @@ export default function AssetDetailPage() {
     const [editTags, setEditTags] = useState("");
     const [editPreviewFile, setEditPreviewFile] = useState<File | null>(null);
     const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
+    const [editLogoFile, setEditLogoFile] = useState<File | null>(null);
+    const [editLogoUrl, setEditLogoUrl] = useState<string | null>(null);
     const [categories, setCategories] = useState<Array<{ category_id: string; name: string; parent_category_id: string | null }>>([]);
     const [editIsPromoted, setEditIsPromoted] = useState(false);
     const [isSavingAsset, setIsSavingAsset] = useState(false);
@@ -631,6 +636,8 @@ export default function AssetDetailPage() {
         setEditTags(asset.tags.join(", "));
         setEditPreviewUrl(asset.preview_url);
         setEditPreviewFile(null);
+        setEditLogoUrl(asset.logo_url || null);
+        setEditLogoFile(null);
         setEditIsPromoted(!!asset.isPromoted);
         setIsEditingAsset(true);
     };
@@ -638,6 +645,7 @@ export default function AssetDetailPage() {
     const handleCancelEditAsset = () => {
         setIsEditingAsset(false);
         setEditPreviewFile(null);
+        setEditLogoFile(null);
     };
 
     const handleSaveAsset = async () => {
@@ -674,6 +682,9 @@ export default function AssetDetailPage() {
             if (editPreviewFile) {
                 formData.append("preview", editPreviewFile);
             }
+            if (editLogoFile) {
+                formData.append("logo", editLogoFile);
+            }
             // Always include isPromoted so API can distinguish true/false explicitly
             formData.append("isPromoted", editIsPromoted ? "true" : "false");
 
@@ -698,6 +709,7 @@ export default function AssetDetailPage() {
                 title: data.asset.title,
                 description: data.asset.description,
                 preview_url: data.asset.preview_url,
+                logo_url: data.asset.logo_url,
                 version: data.asset.version,
                 tags: data.asset.tags,
                 compatibility: data.asset.compatibility,
@@ -707,6 +719,7 @@ export default function AssetDetailPage() {
             
             setIsEditingAsset(false);
             setEditPreviewFile(null);
+            setEditLogoFile(null);
         } catch (error: any) {
             console.error("Error saving asset details:", error);
             alert(error.message || "Failed to save asset details");
@@ -743,6 +756,30 @@ export default function AssetDetailPage() {
         }
     };
 
+    const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.type !== "image/png") {
+                alert("Logo must be a PNG image.");
+                return;
+            }
+
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                alert("Logo file size exceeds 10MB limit.");
+                return;
+            }
+
+            setEditLogoFile(file);
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setEditLogoUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     if (loading) {
         return (
             <div className="asset-detail-page">
@@ -772,7 +809,7 @@ export default function AssetDetailPage() {
                 <div className="asset-detail-grid">
                     <div className="asset-detail-container">
                 {/* Header Section */}
-                <div className="asset-detail-header">
+                    <div className="asset-detail-header">
                     <div className="asset-detail-header-image">
                         <Image
                             src={asset.preview_url || "/asset-thumbnails/essentials.jpg"}
@@ -785,7 +822,13 @@ export default function AssetDetailPage() {
                         />
                     </div>
                     <div className="asset-detail-header-info">
-                        <h1 className="asset-detail-title">{asset.title}</h1>
+                        <h1 className="asset-detail-title">
+                            <AssetTitle
+                                title={asset.title}
+                                logoUrl={asset.logo_url}
+                                visuallyHideText
+                            />
+                        </h1>
                         <p className="asset-detail-description">{asset.description}</p>
                         
                         <div className="asset-detail-meta">
@@ -1334,7 +1377,13 @@ export default function AssetDetailPage() {
                                             />
                                         </div>
                                         <div className="asset-detail-related-info">
-                                            <h4 className="asset-detail-related-item-title">{relatedAsset.title}</h4>
+                                            <h4 className="asset-detail-related-item-title">
+                                                <AssetTitle
+                                                    title={relatedAsset.title}
+                                                    logoUrl={relatedAsset.logo_url}
+                                                    visuallyHideText
+                                                />
+                                            </h4>
                                             <p className="asset-detail-related-item-description">
                                                 {relatedAsset.description.length > 100 
                                                     ? relatedAsset.description.substring(0, 100) + "..." 
@@ -1486,6 +1535,34 @@ export default function AssetDetailPage() {
                                     />
                                     <label htmlFor="edit-preview" className="asset-edit-upload-button">
                                         {editPreviewFile ? "Change Thumbnail" : "Upload Thumbnail"}
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="asset-edit-form-group">
+                                <label htmlFor="edit-logo">Logo (PNG, optional)</label>
+                                <div className="asset-edit-preview-container">
+                                    {editLogoUrl && (
+                                        <div className="asset-edit-preview-image">
+                                            <Image
+                                                src={editLogoUrl}
+                                                alt="Logo preview"
+                                                width={200}
+                                                height={200}
+                                                className="asset-edit-preview-image"
+                                            />
+                                        </div>
+                                    )}
+                                    <input
+                                        id="edit-logo"
+                                        type="file"
+                                        accept="image/png"
+                                        onChange={handleLogoFileChange}
+                                        disabled={isSavingAsset}
+                                        className="asset-edit-file-input"
+                                    />
+                                    <label htmlFor="edit-logo" className="asset-edit-upload-button">
+                                        {editLogoFile ? "Change Logo" : (asset.logo_url ? "Change Logo" : "Upload Logo")}
                                     </label>
                                 </div>
                             </div>

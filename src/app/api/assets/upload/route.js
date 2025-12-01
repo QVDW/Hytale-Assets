@@ -105,6 +105,7 @@ export async function POST(request) {
         const githubUrl = formData.get("github_url"); // For plugins
         const mainFile = formData.get("file"); // For non-plugin assets
         const previewFile = formData.get("preview");
+        const logoFile = formData.get("logo");
 
         // Validation
         if (!title || !description || !category_id) {
@@ -202,6 +203,37 @@ export async function POST(request) {
             }
         }
 
+        // Handle optional logo image (PNG only)
+        let logo_url = null;
+        if (logoFile && logoFile.size > 0) {
+            try {
+                const buffer = Buffer.from(await logoFile.arrayBuffer());
+                const originalName = logoFile.name || "logo.png";
+                const ext = path.extname(originalName).toLowerCase();
+
+                // Only allow PNG logos
+                if (ext !== ".png") {
+                    return NextResponse.json(
+                        { error: "Logo must be a PNG image" },
+                        { status: 400 }
+                    );
+                }
+
+                const baseName = path.basename(originalName, ext);
+                const fileName = `${Date.now()}-${baseName}${ext}`;
+
+                const uploadDir = path.join(process.cwd(), "public", "uploads", "logos");
+                await fs.mkdir(uploadDir, { recursive: true });
+                const filePath = path.join(uploadDir, fileName);
+                await fs.writeFile(filePath, buffer);
+                logo_url = `/uploads/logos/${fileName}`;
+            } catch (logoError) {
+                console.error("Error saving logo:", logoError);
+                // Do not fail the whole upload if logo fails; continue without logo
+                console.warn("Logo image upload failed, continuing without logo");
+            }
+        }
+
         // Create asset in database
         const asset = await prisma.asset.create({
             data: {
@@ -211,6 +243,7 @@ export async function POST(request) {
                 description: description,
                 file_url: file_url,
                 preview_url: preview_url,
+                logo_url: logo_url,
                 version: version,
                 tags: tags,
                 status: "approved", // As per plan, initial status is approved

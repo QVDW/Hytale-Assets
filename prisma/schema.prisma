@@ -248,6 +248,7 @@ model Asset {
   description    String
   file_url       String      @map("file_url")
   preview_url    String?     @map("preview_url")
+  logo_url       String?     @map("logo_url")
   version        String      @default("1.0.0")
   upload_date    DateTime    @default(now()) @map("upload_date")
   last_update    DateTime    @updatedAt @map("last_update")

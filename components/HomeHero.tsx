@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import AssetTitle from "./AssetTitle";
 
 const HERO_ROTATION_INTERVAL_MS = 10000;
 const HERO_MAX_ASSETS = 4;
@@ -15,6 +16,7 @@ interface HeroAsset {
   download_count: number;
   isPromoted?: boolean;
   screenshots?: string[];
+  logo_url?: string | null;
 }
 
 interface AssetsApiAsset {
@@ -24,6 +26,7 @@ interface AssetsApiAsset {
   preview_url: string | null;
   download_count: number;
   isPromoted?: boolean;
+  logo_url?: string | null;
 }
 
 async function fetchJson<T>(url: string): Promise<T | null> {
@@ -104,6 +107,7 @@ export default function HomeHero() {
           title: a.title,
           description: a.description,
           preview_url: a.preview_url,
+          logo_url: a.logo_url,
           download_count: a.download_count,
           isPromoted: a.isPromoted,
           screenshots: detail?.asset?.screenshots ?? [],
@@ -257,7 +261,13 @@ export default function HomeHero() {
           </div>
 
           <div className="home-hero-text">
-            <h1 className="home-hero-title">{activeAsset.title}</h1>
+            <h1 className="home-hero-title">
+              <AssetTitle
+                title={activeAsset.title}
+                logoUrl={activeAsset.logo_url}
+                visuallyHideText
+              />
+            </h1>
             <p className="home-hero-description">
               {truncateDescription(activeAsset.description)}
             </p>
@@ -298,7 +308,13 @@ export default function HomeHero() {
                   />
 
                   <div className="home-hero-screenshot-text">
-                    <h3 className="home-hero-screenshot-title">{asset.title}</h3>
+                    <h3 className="home-hero-screenshot-title">
+                      <AssetTitle
+                        title={asset.title}
+                        logoUrl={asset.logo_url}
+                        visuallyHideText
+                      />
+                    </h3>
                     <p className="home-hero-screenshot-description">
                       {truncateDescription(asset.description, 110)}
                     </p>

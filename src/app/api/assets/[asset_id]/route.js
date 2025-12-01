@@ -278,6 +278,7 @@ export async function PUT(request, { params }) {
         const compatibility = formData.get("compatibility") || null;
         const tags = formData.get("tags") ? formData.get("tags").split(',').map(t => t.trim()).filter(t => t) : [];
         const previewFile = formData.get("preview");
+        const logoFile = formData.get("logo");
         const isPromotedRaw = formData.get("isPromoted");
         const hasIsPromotedField = formData.has("isPromoted");
 
@@ -337,11 +338,57 @@ export async function PUT(request, { params }) {
             }
         }
 
+        // Handle optional logo upload (PNG only)
+        let logo_url = asset.logo_url; // Keep existing logo if no new file
+        if (logoFile && logoFile.size > 0) {
+            try {
+                const buffer = Buffer.from(await logoFile.arrayBuffer());
+                const originalName = logoFile.name || "logo.png";
+                const ext = path.extname(originalName).toLowerCase();
+
+                // Only allow PNG logos
+                if (ext !== ".png") {
+                    return NextResponse.json(
+                        { error: "Logo must be a PNG image" },
+                        { status: 400 }
+                    );
+                }
+
+                const baseName = path.basename(originalName, ext);
+                const fileName = `${Date.now()}-${baseName}${ext}`;
+
+                const uploadDir = path.join(process.cwd(), "public", "uploads", "logos");
+                await fs.mkdir(uploadDir, { recursive: true });
+                const filePath = path.join(uploadDir, fileName);
+                await fs.writeFile(filePath, buffer);
+                const newLogoUrl = `/uploads/logos/${fileName}`;
+
+                // If the old logo lived under /uploads/logos, try to delete it (best-effort)
+                if (logo_url && logo_url.startsWith("/uploads/logos/")) {
+                    const oldLogoPath = path.join(process.cwd(), "public", logo_url);
+                    try {
+                        await fs.unlink(oldLogoPath);
+                    } catch (deleteError) {
+                        console.warn("Could not delete old logo file:", deleteError);
+                    }
+                }
+
+                logo_url = newLogoUrl;
+            } catch (logoError) {
+                console.error("Error saving logo:", logoError);
+                return NextResponse.json(
+                    { error: `Failed to save logo: ${logoError.message}` },
+                    { status: 500 }
+                );
+            }
+        }
+
         // Build update data
         const updateData = {
             title,
             description,
             preview_url,
+            logo_url,
             tags,
             compatibility
         };
