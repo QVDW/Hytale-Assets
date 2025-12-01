@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import Navbar from "../../../../components/Navbar";
 import "../../../styles/auth.scss";
-import { FaDownload, FaEdit, FaStar, FaTrash } from "react-icons/fa";
+import { FaDownload, FaEdit, FaStar, FaTrash, FaArrowUp, FaArrowDown } from "react-icons/fa";
 
 interface AssetData {
     asset_id: string;
@@ -53,6 +53,7 @@ interface AssetData {
         content: string;
         order: number;
     }>;
+    screenshots?: string[];
 }
 
 interface UserData {
@@ -62,7 +63,7 @@ interface UserData {
     user_role?: string;
 }
 
-type TabType = "overview" | "versions" | "reviews";
+type TabType = "overview" | "screenshots" | "versions" | "reviews";
 
 export default function AssetDetailPage() {
     const router = useRouter();
@@ -103,6 +104,9 @@ export default function AssetDetailPage() {
     }>>([]);
     const [relatedAssetsLoading, setRelatedAssetsLoading] = useState(false);
     const editMenuRef = useRef<HTMLDivElement>(null);
+    const [isUploadingScreenshot, setIsUploadingScreenshot] = useState(false);
+    const [isDraggingScreenshot, setIsDraggingScreenshot] = useState(false);
+    const [isSavingScreenshots, setIsSavingScreenshots] = useState(false);
     
     // Edit asset details state
     const [isEditingAsset, setIsEditingAsset] = useState(false);
@@ -488,6 +492,130 @@ export default function AssetDetailPage() {
         }
     };
 
+    const saveScreenshots = async (screenshots: string[]) => {
+        if (!asset) return;
+
+        setIsSavingScreenshots(true);
+        try {
+            const token = localStorage.getItem("userToken");
+            if (!token) {
+                alert("You must be logged in to modify screenshots");
+                return;
+            }
+
+            const response = await fetch(`/api/assets/${asset_id}/screenshots`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ screenshots })
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error || "Failed to update screenshots");
+            }
+
+            const data = await response.json();
+            setAsset(prev => prev ? { ...prev, screenshots: data.screenshots } : prev);
+        } catch (error: any) {
+            console.error("Error saving screenshots:", error);
+            alert(error.message || "Failed to save screenshots. Please try again.");
+        } finally {
+            setIsSavingScreenshots(false);
+        }
+    };
+
+    const handleScreenshotImageUpload = async (file: File) => {
+        if (!asset) return;
+
+        // Validate file type
+        const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+        if (!allowedTypes.includes(file.type)) {
+            alert("Invalid file type. Only JPEG, PNG, and WebP images are allowed.");
+            return;
+        }
+
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            alert("File size exceeds 10MB limit.");
+            return;
+        }
+
+        setIsUploadingScreenshot(true);
+
+        try {
+            const token = localStorage.getItem("userToken");
+            if (!token) {
+                alert("You must be logged in to upload screenshots");
+                return;
+            }
+
+            // First upload the image (server will auto-resize to 16:9 up to 1280x720)
+            const uploadForm = new FormData();
+            uploadForm.append("file", file);
+            uploadForm.append("asset_id", asset_id);
+
+            const uploadResponse = await fetch("/api/assets/overview-image", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
+                body: uploadForm
+            });
+
+            if (!uploadResponse.ok) {
+                const errorData = await uploadResponse.json().catch(() => ({}));
+                throw new Error(errorData.error || "Failed to upload screenshot");
+            }
+
+            const uploadData = await uploadResponse.json();
+            const imageUrl = uploadData.image_url as string;
+
+            // Save screenshot reference separately from overview sections
+            const saveResponse = await fetch(`/api/assets/${asset_id}/screenshots`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ image_url: imageUrl })
+            });
+
+            if (!saveResponse.ok) {
+                const error = await saveResponse.json().catch(() => ({}));
+                throw new Error(error.error || "Failed to save screenshot");
+            }
+
+            const saveData = await saveResponse.json();
+
+            // Update local asset state with the screenshots list returned from the server
+            setAsset(prev => prev ? { ...prev, screenshots: saveData.screenshots } : prev);
+        } catch (error: any) {
+            console.error("Error uploading screenshot:", error);
+            alert(error.message || "Failed to upload screenshot. Please try again.");
+        } finally {
+            setIsUploadingScreenshot(false);
+        }
+    };
+
+    const handleRemoveScreenshot = async (index: number) => {
+        if (!asset || !asset.screenshots) return;
+        const newScreens = asset.screenshots.filter((_, i) => i !== index);
+        await saveScreenshots(newScreens);
+    };
+
+    const handleMoveScreenshot = async (index: number, direction: "up" | "down") => {
+        if (!asset || !asset.screenshots) return;
+        const screenshots = [...asset.screenshots];
+        const targetIndex = direction === "up" ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= screenshots.length) return;
+        [screenshots[index], screenshots[targetIndex]] = [screenshots[targetIndex], screenshots[index]];
+        await saveScreenshots(screenshots);
+    };
+
     const handleEditAsset = () => {
         setIsEditMenuOpen(false);
         if (!asset) return;
@@ -733,6 +861,12 @@ export default function AssetDetailPage() {
                         Overview
                     </button>
                     <button
+                        className={`asset-detail-tab ${activeTab === "screenshots" ? "active" : ""}`}
+                        onClick={() => setActiveTab("screenshots")}
+                    >
+                        Screenshots
+                    </button>
+                    <button
                         className={`asset-detail-tab ${activeTab === "versions" ? "active" : ""}`}
                         onClick={() => setActiveTab("versions")}
                     >
@@ -950,6 +1084,128 @@ export default function AssetDetailPage() {
                                     )}
                                 </>
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === "screenshots" && (
+                        <div className="asset-detail-screenshots">
+                            {canEdit() && (
+                                <div className="asset-screenshots-upload">
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                                        id="asset-screenshots-upload-input"
+                                        style={{ display: "none" }}
+                                        onChange={(e) => {
+                                            const files = e.target.files;
+                                            if (files && files.length > 0) {
+                                                Array.from(files).forEach((file) => {
+                                                    void handleScreenshotImageUpload(file);
+                                                });
+                                            }
+                                            e.target.value = "";
+                                        }}
+                                        disabled={isUploadingScreenshot}
+                                        multiple
+                                    />
+                                    <div
+                                        className={`asset-screenshots-dropzone ${isDraggingScreenshot ? "dragging" : ""}`}
+                                        onClick={() => {
+                                            const input = document.getElementById("asset-screenshots-upload-input") as HTMLInputElement | null;
+                                            if (input && !isUploadingScreenshot) {
+                                                input.click();
+                                            }
+                                        }}
+                                        onDragOver={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (!isUploadingScreenshot) {
+                                                setIsDraggingScreenshot(true);
+                                            }
+                                        }}
+                                        onDragLeave={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsDraggingScreenshot(false);
+                                        }}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsDraggingScreenshot(false);
+                                            if (isUploadingScreenshot) return;
+                                            const files = e.dataTransfer.files;
+                                            if (files && files.length > 0) {
+                                                Array.from(files).forEach((file) => {
+                                                    void handleScreenshotImageUpload(file);
+                                                });
+                                            }
+                                        }}
+                                    >
+                                        <div className="asset-screenshots-dropzone-content">
+                                            <p className="asset-screenshots-dropzone-title">
+                                                {isUploadingScreenshot ? "Uploading screenshot..." : "Drag & drop screenshots here"}
+                                            </p>
+                                            <p className="asset-screenshots-dropzone-subtitle">
+                                                or click to browse your files
+                                            </p>
+                                            <p className="asset-screenshots-dropzone-hint">
+                                                JPEG, PNG, or WebP images, auto-resized to 16:9 (max 1280×720)
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="asset-screenshots-list">
+                                {(asset.screenshots || []).length === 0 ? (
+                                    <p className="asset-detail-empty">No screenshots yet.</p>
+                                ) : (
+                                    (asset.screenshots || []).map((url, index) => (
+                                        <div key={`${url}-${index}`} className="asset-screenshot-item">
+                                            <Image
+                                                src={url}
+                                                alt="Screenshot"
+                                                width={800}
+                                                height={450}
+                                                onError={(e) => {
+                                                    e.currentTarget.src = "/asset-thumbnails/essentials.jpg";
+                                                }}
+                                            />
+                                            {canEdit() && (
+                                                <div className="asset-screenshot-controls">
+                                                    <button
+                                                        type="button"
+                                                        className="asset-screenshot-btn"
+                                                        onClick={() => handleMoveScreenshot(index, "up")}
+                                                        disabled={index === 0 || isSavingScreenshots}
+                                                        title="Move up"
+                                                    >
+                                                        <FaArrowUp />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="asset-screenshot-btn"
+                                                        onClick={() => handleMoveScreenshot(index, "down")}
+                                                        disabled={index === (asset.screenshots?.length || 0) - 1 || isSavingScreenshots}
+                                                        title="Move down"
+                                                    >
+                                                        <FaArrowDown />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="asset-screenshot-btn remove"
+                                                        onClick={() => handleRemoveScreenshot(index)}
+                                                        disabled={isSavingScreenshots}
+                                                        title="Remove screenshot"
+                                                    >
+                                                        <FaTrash />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     )}
 

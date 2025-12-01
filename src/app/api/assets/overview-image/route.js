@@ -5,7 +5,9 @@ import { promises as fs } from "fs";
 import path from "path";
 import sharp from "sharp";
 
-const MAX_DIMENSION = 1000; // Maximum width or height in pixels
+// Target 16:9 aspect ratio with a maximum of 1280x720
+const MAX_WIDTH = 1280;
+const MAX_HEIGHT = 720;
 
 // Helper function to get current user from token
 async function getCurrentUser(request) {
@@ -128,28 +130,13 @@ export async function POST(request) {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // Get image metadata to determine dimensions
-        const metadata = await sharp(buffer).metadata();
-        const { width, height } = metadata;
-
-        // Calculate new dimensions (maintain aspect ratio, max dimension = 1000px)
-        let newWidth = width;
-        let newHeight = height;
-
-        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-            if (width > height) {
-                newWidth = MAX_DIMENSION;
-                newHeight = Math.round((height / width) * MAX_DIMENSION);
-            } else {
-                newHeight = MAX_DIMENSION;
-                newWidth = Math.round((width / height) * MAX_DIMENSION);
-            }
-        }
-
         // Resize and convert to JPEG (for consistency)
+        // We enforce a 16:9 aspect ratio and a maximum resolution of 1280x720.
+        // Sharp will not enlarge images that are smaller than this.
         const resizedBuffer = await sharp(buffer)
-            .resize(newWidth, newHeight, {
-                fit: 'inside',
+            .resize(MAX_WIDTH, MAX_HEIGHT, {
+                fit: "cover",           // Crop to fill 16:9 while keeping subject centered
+                position: "center",
                 withoutEnlargement: true
             })
             .jpeg({ quality: 90 })

@@ -193,10 +193,10 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
 
         {/* Desktop Navigation - visible on >1200px */}
         <div className="nav-desktop-menu">
-          <Link href="/art-assets" className={`${pathname === '/art-assets' ? 'active' : ''} ${isLoaded ? 'animate-in' : ''}`} data-animation-delay="1">ART ASSETS</Link>
-          <Link href="/plugins" className={`${pathname === '/plugins' ? 'active' : ''} ${isLoaded ? 'animate-in' : ''}`} data-animation-delay="2">PLUGINS</Link>
-          <Link href="/save-files" className={`${pathname === '/save-files' ? 'active' : ''} ${isLoaded ? 'animate-in' : ''}`} data-animation-delay="3">SAVE FILES</Link>
-          <Link href="/json-files" className={`${pathname === '/json-files' ? 'active' : ''} ${isLoaded ? 'animate-in' : ''}`} data-animation-delay="4">JSON FILES</Link>
+          <Link href="/assets" className={`${pathname === '/assets' ? 'active' : ''} ${isLoaded ? 'animate-in' : ''}`} data-animation-delay="1">ASSETS</Link>
+          <Link href="/servers" className={`${pathname === '/servers' ? 'active' : ''} ${isLoaded ? 'animate-in' : ''}`} data-animation-delay="2">SERVER LIST</Link>
+          <Link href="/save-files" className={`${pathname === '/save-files' ? 'active' : ''} ${isLoaded ? 'animate-in' : ''}`} data-animation-delay="3">SKINS</Link>
+          <Link href="/json-files" className={`${pathname === '/json-files' ? 'active' : ''} ${isLoaded ? 'animate-in' : ''}`} data-animation-delay="4">SAVE FILES</Link>
         </div>
 
         {/* Search Bar */}

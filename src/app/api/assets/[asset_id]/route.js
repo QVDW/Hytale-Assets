@@ -67,8 +67,8 @@ async function getCurrentUser(request) {
 }
 
 export async function GET(request, { params }) {
+    const { asset_id } = await params;
     try {
-        const { asset_id } = await params;
 
         if (!asset_id) {
             return NextResponse.json(
@@ -78,7 +78,7 @@ export async function GET(request, { params }) {
         }
 
         // Fetch asset with all related data
-        // Try to include overviewSections, but handle if it doesn't exist yet
+        // Try to include overviewSections and metadata (for screenshots), but handle if overviewSections doesn't exist yet
         let asset;
         try {
             asset = await prisma.asset.findUnique({
@@ -125,7 +125,8 @@ export async function GET(request, { params }) {
                         orderBy: {
                             order: "asc"
                         }
-                    }
+                    },
+                    metadata: true
                 }
             });
         } catch (includeError) {
@@ -192,10 +193,16 @@ export async function GET(request, { params }) {
             ? activeReviews.reduce((sum, review) => sum + review.rating, 0) / activeReviews.length
             : 0;
 
+        // Extract screenshots from metadata (key === "screenshot")
+        const screenshots = (asset.metadata || [])
+            .filter((m) => m.key === "screenshot")
+            .map((m) => m.value);
+
         return NextResponse.json({
             asset: {
                 ...asset,
-                averageRating: Math.round(averageRating * 10) / 10 // Round to 1 decimal place
+                averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal place
+                screenshots
             }
         });
 
