@@ -54,6 +54,7 @@ interface AssetData {
         order: number;
     }>;
     screenshots?: string[];
+    isPromoted?: boolean;
 }
 
 interface UserData {
@@ -119,6 +120,7 @@ export default function AssetDetailPage() {
     const [editPreviewFile, setEditPreviewFile] = useState<File | null>(null);
     const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
     const [categories, setCategories] = useState<Array<{ category_id: string; name: string; parent_category_id: string | null }>>([]);
+    const [editIsPromoted, setEditIsPromoted] = useState(false);
     const [isSavingAsset, setIsSavingAsset] = useState(false);
 
     // Close edit menu when clicking outside
@@ -629,6 +631,7 @@ export default function AssetDetailPage() {
         setEditTags(asset.tags.join(", "));
         setEditPreviewUrl(asset.preview_url);
         setEditPreviewFile(null);
+        setEditIsPromoted(!!asset.isPromoted);
         setIsEditingAsset(true);
     };
 
@@ -671,6 +674,8 @@ export default function AssetDetailPage() {
             if (editPreviewFile) {
                 formData.append("preview", editPreviewFile);
             }
+            // Always include isPromoted so API can distinguish true/false explicitly
+            formData.append("isPromoted", editIsPromoted ? "true" : "false");
 
             const response = await fetch(`/api/assets/${asset_id}`, {
                 method: "PUT",
@@ -696,7 +701,8 @@ export default function AssetDetailPage() {
                 version: data.asset.version,
                 tags: data.asset.tags,
                 compatibility: data.asset.compatibility,
-                category: data.asset.category
+                category: data.asset.category,
+                isPromoted: data.asset.isPromoted
             } : null);
             
             setIsEditingAsset(false);
@@ -1442,6 +1448,18 @@ export default function AssetDetailPage() {
                                     placeholder="tag1, tag2, tag3"
                                     disabled={isSavingAsset}
                                 />
+                            </div>
+
+                            <div className="asset-edit-form-group asset-edit-form-group-inline">
+                                <label className="asset-edit-checkbox-label">
+                                    <input
+                                        type="checkbox"
+                                        checked={editIsPromoted}
+                                        onChange={(e) => setEditIsPromoted(e.target.checked)}
+                                        disabled={isSavingAsset}
+                                    />
+                                    <span>Promote on homepage</span>
+                                </label>
                             </div>
 
                             <div className="asset-edit-form-group">

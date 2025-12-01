@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import LogoCarousel from "../../components/LogoCarousel";
+import HomeHero from "../../components/HomeHero";
 import "../../src/styles/home.scss";
 import Image from "next/image";
 import Link from "next/link";
@@ -152,143 +153,8 @@ export default function Home() {
   return (
     <div>
       <Navbar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-      <div className="hero">
-        <div className="hero-background" style={{ backgroundImage: `url(${backgroundImage})` }}></div>
-        <div className="hero-content">
-          <div className="hero-content-text">
-            <h1>Lorum Ipsum Dolor Sit Amet</h1>
-            <p className="hero-content-text-description-desktop">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor.</p>   
-            <p className="hero-content-text-description-mobile">Lorem ipsum dolor sit amet</p>
-          </div>
-          <div className="hero-buttons">
-            <button>Lorem Ipsum</button>
-            <button>Lorem Ipsum</button>
-          </div>
-        </div>
-        <div className="hero-info-content">
-          <div className="hero-info-content-item">
-            <h2>{count1}+</h2>
-            <p>Lorem ipsum</p>
-          </div>
-          <div className="hero-info-content-item">
-            <h2>{count2}+</h2>
-            <p>Lorem ipsum</p>
-          </div>
-          <div className="hero-info-content-item">
-            <h2>{count3}+</h2>
-            <p>Lorem ipsum</p>
-          </div>
-        </div>
-      </div>
-      <div className="logo-carousel-section">
-        <h2 ref={logoCarouselTitleRef} className="scroll-animate">Lorem ipsum</h2>
-        <div ref={logoCarouselRef} className="scroll-animate">
-          <LogoCarousel />
-        </div>
-      </div>
-      <div className="home-info-section">
-        <div ref={homeInfoSection1Ref} className="home-info-section-item scroll-animate">
-          <div className="home-info-section-item-image">
-            <Image src="/placeholder.svg" alt="Lorem ipsum" width={100} height={100} />
-          </div>
-          <div className="home-info-section-item-text">
-          <div className="home-info-section-item-text-title">
-              <h3>Lorem ipsum</h3>
-              <h2>Lorem ipsum dolor sit amet</h2>
-            </div>
-            <p>tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-            <div className="home-info-section-item-buttons">
-              <Link className="home-info-section-item-button home-info-section-item-button-primary" href="/">Lorem ipsum</Link>
-              <Link className="home-info-section-item-button home-info-section-item-button-secondary" href="/">Lorem ipsum</Link>
-            </div>
-          </div>
-        </div>
-        <div ref={homeInfoSection2Ref} className="home-info-section-item scroll-animate">
-          <div className="home-info-section-item-text">
-            <div className="home-info-section-item-text-title">
-              <h3>Lorem ipsum</h3>
-              <h2>Lorem ipsum dolor sit amet</h2>
-            </div>
-            <p>tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-            <div className="home-info-section-item-buttons">
-              <Link className="home-info-section-item-button home-info-section-item-button-primary" href="/">Lorem ipsum</Link>
-              <Link className="home-info-section-item-button home-info-section-item-button-secondary" href="/">Lorem ipsum</Link>
-            </div>
-          </div>
-          <div className="home-info-section-item-image">
-            <Image src="/placeholder.svg" alt="Lorem ipsum" width={100} height={100} />
-          </div>
-        </div>
-      </div>
-      <div className="home-info-section-small-container">
-        <div className="home-info-section-small-title">
-          <h2 ref={homeInfoSmallTitleRef} className="scroll-animate">Lorem ipsum</h2>
-        </div>
-        <div ref={homeInfoSmallItemsRef} className="home-info-section-small scroll-animate">
-          <div className="home-info-section-item">
-            <CiImageOn />
-            <h2>Lorem ipsum</h2>
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-          </div>
-          <div className="home-info-section-item">
-            <CiImageOn />
-            <h2>Lorem ipsum</h2>
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-          </div>
-          <div className="home-info-section-item">
-            <CiImageOn />
-            <h2>Lorem ipsum</h2>
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-          </div>
-          <div className="home-info-section-item">
-            <CiImageOn />
-            <h2>Lorem ipsum</h2>
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-          </div>
-          <div className="home-info-section-item">
-            <CiImageOn />
-            <h2>Lorem ipsum</h2>
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-          </div>
-          <div className="home-info-section-item">
-            <CiImageOn />
-            <h2>Lorem ipsum</h2>
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam, quos.</p>
-          </div>
-        </div>
-      </div>
-      <div className="home-projects-section">
-        <h2 ref={homeProjectsTitleRef} className="scroll-animate">Lorem ipsum</h2>
-        <div ref={homeProjectsItemsRef} className="home-projects-section-items scroll-animate">
-          <div className="home-projects-section-item">
-            <div className="home-projects-section-item-image">
-              <Image src="/placeholder.svg" alt="Lorem ipsum" width={100} height={100} />
-              <div className="home-projects-section-item-text">
-                <h2>Lorem ipsum</h2>
-                <p>2025</p>
-              </div>
-            </div>
-          </div>
-          <div className="home-projects-section-item">
-            <div className="home-projects-section-item-image">
-              <Image src="/placeholder.svg" alt="Lorem ipsum" width={100} height={100} />
-              <div className="home-projects-section-item-text">
-                <h2>Lorem ipsum</h2>
-                <p>2025</p>
-              </div>
-            </div>
-          </div>
-          <div className="home-projects-section-item">
-            <div className="home-projects-section-item-image">
-              <Image src="/placeholder.svg" alt="Lorem ipsum" width={100} height={100} />
-              <div className="home-projects-section-item-text">
-                <h2>Lorem ipsum</h2>
-                <p>2025</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <HomeHero />
+      
       <Footer ref={footerRef} className="scroll-animate" />
     </div>
   );

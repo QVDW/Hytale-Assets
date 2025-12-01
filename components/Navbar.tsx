@@ -162,6 +162,8 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
     };
   }, [pathname]); // Re-check when route changes
 
+  const isHomePage = pathname === "/";
+
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("userToken");
@@ -175,7 +177,7 @@ export default function Navbar({ isMenuOpen, setIsMenuOpen, isScrolled: external
 
   return (
     <header 
-      className={`${isScrolled || isMenuOpen ? "scrolled" : ""} ${isLightPage ? "light-page" : ""} ${isLoaded ? "loaded" : ""}`}
+      className={`${isScrolled || isMenuOpen ? "scrolled" : ""} ${isLightPage ? "light-page" : ""} ${isLoaded ? "loaded" : ""} ${isHomePage ? "home-header" : ""}`}
       style={scrolledBackgroundColor && (isScrolled || isMenuOpen) ? { backgroundColor: scrolledBackgroundColor } : {}}
     >
       <nav>

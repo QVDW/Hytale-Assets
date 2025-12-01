@@ -54,6 +54,7 @@
     }
 }
 
+// Legacy hero styles (kept for reference, not used by new HomeHero)
 .hero{
     height: 100vh;
     background-size: cover;
@@ -186,6 +187,381 @@
                 border-right: 1px solid rgba(color.$light, 0.4);
             }
         }
+    }
+}
+
+// New homepage hero for promoted assets
+.home-hero {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    padding: 0 3vw;
+
+    .home-hero-top-gradient {
+        position: absolute;
+        inset-inline: 0;
+        top: 0;
+        height: 220px;
+        z-index: 0;
+        pointer-events: none;
+        background: linear-gradient(
+            to bottom,
+            #000,
+            transparent
+        );
+    }
+
+    .home-hero-background {
+        background-position: center;
+        background-size: cover;
+        filter: brightness(0.55);
+        inset: 0;
+        opacity: 1;
+        position: absolute;
+        transform: scale(1.03);
+        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        z-index: -1;
+    }
+
+    .home-hero-inner {
+        display: grid;
+        gap: 3rem;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        width: 100%;
+        margin-top: 3rem;
+    }
+
+    .home-hero-left-card {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        justify-content: flex-end;
+    }
+
+    .home-hero-left-card-text {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .home-hero-thumbnail-wrapper {
+        aspect-ratio: 1 / 1;
+        border-radius: 18px;
+        overflow: hidden;
+        position: relative;
+        width: 220px;
+    }
+
+    .home-hero-thumbnail-image {
+        object-fit: cover;
+    }
+
+    .home-hero-text {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        justify-content: center;
+    }
+
+    .home-hero-progress {
+        margin-top: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .home-hero-progress-track {
+        width: 100%;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(color.$light, 0.18);
+        overflow: hidden;
+    }
+
+    .home-hero-progress-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(
+            to right,
+            color.$accent,
+            lighten(color.$accent, 6%)
+        );
+        transition: width 0.12s linear;
+    }
+
+    .home-hero-cta {
+        margin-top: 0.5rem;
+    }
+
+    .home-hero-cta-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.7rem 1.6rem;
+        border-radius: 999px;
+        background: color.$accent;
+        color: color.$light;
+        font-weight: 600;
+        font-size: 0.95rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        text-decoration: none;
+        border: none;
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55);
+        cursor: pointer;
+        transition:
+            background 0.18s ease,
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
+
+        &:hover,
+        &:focus-visible {
+            background: lighten(color.$accent, 4%);
+            transform: translateY(-1px);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7);
+        }
+
+        &:active {
+            transform: translateY(0);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+        }
+    }
+
+    .home-hero-title {
+        font-size: 2.75rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        line-height: 1.15;
+        color: color.$light;
+    }
+
+    .home-hero-description {
+        color: rgba(color.$light, 0.9);
+        display: -webkit-box;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .home-hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    .home-hero-meta-pill {
+        background: rgba(color.$light, 0.08);
+        border: 1px solid rgba(color.$light, 0.2);
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        padding: 0.35rem 0.9rem;
+        text-transform: uppercase;
+    }
+
+    .home-hero-meta-pill-accent {
+        background: rgba(color.$accent, 0.18);
+        border-color: rgba(color.$accent, 0.8);
+        color: color.$accent;
+    }
+
+    .home-hero-right-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        height: 85vh;
+        justify-content: stretch;
+    }
+
+    .home-hero-screenshot-card {
+        background: transparent;
+        border-radius: 18px;
+        color: color.$light;
+        display: block;
+        flex: 1 1 0;
+        padding: 0;
+        text-decoration: none;
+    }
+
+    .home-hero-screenshot-card-button {
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        text-align: inherit;
+        width: 100%;
+    }
+
+    .home-hero-screenshot-image-wrapper {
+        border-radius: 18px;
+        aspect-ratio: 16 / 9;
+        // fix height per card so three cards + gaps fit into the 85vh column,
+        // and let width be derived from height via the aspect-ratio
+        height: calc((85vh - 3rem) / 3);
+        min-height: 0;
+        overflow: hidden;
+        position: relative;
+        width: auto;
+        max-width: 100%;
+        margin-left: auto;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+        z-index: 0;
+
+        // subtle dark gradient at the bottom to improve text contrast on any image
+        &::after {
+            content: "";
+            position: absolute;
+            inset-inline: 0;
+            bottom: 0;
+            height: 100%;
+            background: linear-gradient(
+                to top,
+                rgba(0, 0, 0, 0.78),
+                rgba(0, 0, 0, 0.25),
+                transparent
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+    }
+
+    .home-hero-screenshot-image {
+        object-fit: cover;
+    }
+
+    .home-hero-screenshot-text {
+        position: absolute;
+        inset-inline: 1.4rem;
+        bottom: 1.4rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        justify-content: flex-end;
+        text-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+        z-index: 2;
+    }
+
+    .home-hero-screenshot-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        margin: 0;
+        color: color.$light;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .home-hero-screenshot-description {
+        margin: 0;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        color: rgba(color.$light, 0.9);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .home-hero-indicators {
+        bottom: 2rem;
+        display: flex;
+        gap: 0.5rem;
+        left: 50%;
+        position: absolute;
+        transform: translateX(-50%);
+    }
+
+    .home-hero-indicator {
+        background: rgba(color.$light, 0.35);
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        height: 9px;
+        padding: 0;
+        transition: all 0.2s ease;
+        width: 9px;
+    }
+
+    .home-hero-indicator-active {
+        background: color.$accent;
+        width: 26px;
+    }
+
+    &.home-hero-loading {
+        .home-hero-background {
+            background: radial-gradient(circle at top, rgba(color.$accent, 0.55), rgba(color.$dark, 0.98));
+            filter: none;
+            opacity: 1;
+            transform: none;
+        }
+
+        .skeleton-card,
+        .skeleton-media,
+        .skeleton-line,
+        .skeleton-pill {
+            position: relative;
+            overflow: hidden;
+            background: rgba(color.$dark, 0.9);
+
+            &::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(
+                    120deg,
+                    rgba(color.$dark, 0),
+                    rgba(color.$light, 0.12),
+                    rgba(color.$dark, 0)
+                );
+                background-size: 200% 100%;
+                animation: shimmer 1.4s infinite;
+            }
+        }
+
+        .skeleton-media {
+            background: radial-gradient(circle at top, rgba(color.$light, 0.1), rgba(color.$dark, 0.98));
+        }
+
+        .skeleton-line {
+            border-radius: 999px;
+            height: 0.85rem;
+            opacity: 0.8;
+
+            &.skeleton-line-lg {
+                width: 72%;
+            }
+
+            &.skeleton-line-md {
+                width: 56%;
+            }
+
+            &.skeleton-line-sm {
+                width: 38%;
+            }
+        }
+
+        .skeleton-pill {
+            border-radius: 999px;
+            height: 1.25rem;
+            min-width: 4.5rem;
+            background: rgba(color.$dark, 0.95);
+        }
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
     }
 }
 
@@ -561,6 +937,42 @@
 
 // Mobile Responsive Styles
 @media screen and (max-width: 768px) {
+    // New hero mobile layout
+    .home-hero {
+        height: auto;
+        padding: 6rem 1.25rem 2.5rem 1.25rem;
+
+        .home-hero-inner {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 1.75rem;
+        }
+
+        .home-hero-left-card {
+            grid-template-rows: auto auto;
+            padding: 1.75rem 1.5rem;
+        }
+
+        .home-hero-thumbnail-wrapper {
+            width: 160px;
+        }
+
+        .home-hero-title {
+            font-size: 2rem;
+        }
+
+        .home-hero-description {
+            font-size: 0.95rem;
+        }
+
+        .home-hero-right-column {
+            display: none;
+        }
+
+        .home-hero-indicators {
+            bottom: 1.5rem;
+        }
+    }
+
     // Hero Section Mobile
     .hero {
         height: 100vh;

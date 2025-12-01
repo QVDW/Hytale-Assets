@@ -278,6 +278,8 @@ export async function PUT(request, { params }) {
         const compatibility = formData.get("compatibility") || null;
         const tags = formData.get("tags") ? formData.get("tags").split(',').map(t => t.trim()).filter(t => t) : [];
         const previewFile = formData.get("preview");
+        const isPromotedRaw = formData.get("isPromoted");
+        const hasIsPromotedField = formData.has("isPromoted");
 
         // Validation
         if (!title || !description) {
@@ -343,6 +345,11 @@ export async function PUT(request, { params }) {
             tags,
             compatibility
         };
+
+        // Only update isPromoted if field was present in the form data
+        if (hasIsPromotedField) {
+            updateData.isPromoted = isPromotedRaw === "true" || isPromotedRaw === "1" || isPromotedRaw === "on";
+        }
 
         if (category_id) {
             updateData.category_id = category_id;

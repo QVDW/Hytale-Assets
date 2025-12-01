@@ -7,6 +7,9 @@ export async function GET(request) {
         const category_id = searchParams.get("category_id");
         const sort = searchParams.get("sort") || "downloads"; // downloads, date, rating
         const order = searchParams.get("order") || "desc"; // asc, desc
+        const isPromotedParam = searchParams.get("isPromoted");
+        const limitParam = searchParams.get("limit");
+        const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
         // Build where clause
         const where = {
@@ -16,6 +19,13 @@ export async function GET(request) {
         // Add category filter if provided
         if (category_id) {
             where.category_id = category_id;
+        }
+
+        // Add promoted filter if provided
+        if (isPromotedParam === "true") {
+            where.isPromoted = true;
+        } else if (isPromotedParam === "false") {
+            where.isPromoted = false;
         }
 
         // Build orderBy clause based on sort parameter
@@ -59,7 +69,8 @@ export async function GET(request) {
                     }
                 }
             },
-            orderBy: sort === "rating" ? { upload_date: "desc" } : orderBy
+            orderBy: sort === "rating" ? { upload_date: "desc" } : orderBy,
+            take: limit
         });
 
         // Calculate average rating for each asset

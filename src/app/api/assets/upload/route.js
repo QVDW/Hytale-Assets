@@ -100,6 +100,8 @@ export async function POST(request) {
         const version = formData.get("version") || "1.0.0";
         const compatibility = formData.get("compatibility") || null;
         const tags = formData.get("tags") ? formData.get("tags").split(',').map(t => t.trim()).filter(t => t) : [];
+        const isPromotedRaw = formData.get("isPromoted");
+        const isPromoted = isPromotedRaw === "true" || isPromotedRaw === "1" || isPromotedRaw === "on";
         const githubUrl = formData.get("github_url"); // For plugins
         const mainFile = formData.get("file"); // For non-plugin assets
         const previewFile = formData.get("preview");
@@ -213,7 +215,8 @@ export async function POST(request) {
                 tags: tags,
                 status: "approved", // As per plan, initial status is approved
                 compatibility: compatibility,
-                download_count: 0
+                download_count: 0,
+                isPromoted: isPromoted
             }
         });
 

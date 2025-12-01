@@ -255,6 +255,7 @@ model Asset {
   tags           String[]
   status         AssetStatus @default(approved)
   compatibility  String?     // Game version compatibility
+  isPromoted     Boolean     @default(false) @map("is_promoted")
   
   // Relations
   uploader       UserAccount @relation(fields: [uploader_id], references: [user_id], onDelete: Cascade)
@@ -271,6 +272,7 @@ model Asset {
   @@index([uploader_id])
   @@index([category_id])
   @@index([status])
+  @@index([isPromoted])
   @@index([upload_date(sort: Desc)])
   @@index([download_count(sort: Desc)])
   @@map("assets")
